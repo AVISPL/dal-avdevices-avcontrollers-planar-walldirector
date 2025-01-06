@@ -1,0 +1,2 @@
+# dal-avdevices-avcontrollers-planar-walldirector-
+This repository is dedicated to Symphony's Device Adapter Library (DAL) for the Planar® WallDirector™ Video Controller (VC), a family of compact and scalable video processors designed to drive Planar video walls using the powerful web-based Planar® WallDirector™ OS management application.
