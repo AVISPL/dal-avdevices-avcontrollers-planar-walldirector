@@ -1,3 +1,7 @@
+/*
+ *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
 
 import com.avispl.symphony.api.dal.control.Controller;
@@ -7,10 +11,14 @@ import com.avispl.symphony.api.dal.dto.monitor.ExtendedStatistics;
 import com.avispl.symphony.api.dal.dto.monitor.Statistics;
 import com.avispl.symphony.api.dal.error.ResourceNotReachableException;
 import com.avispl.symphony.api.dal.monitor.Monitorable;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.InputInfoEnum;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.ListIDCommand;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.WallDirectorCommandList;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.WallDirectorConstant;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.enums.ColorTemperatureEnum;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.enums.OutputModeEnum;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.enums.ZoneAspectEnum;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.enums.CabinetInputEnum;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.enums.InputInfoEnum;
 import com.avispl.symphony.dal.communicator.SocketCommunicator;
 import com.avispl.symphony.dal.util.StringUtils;
 import org.springframework.util.CollectionUtils;
@@ -150,7 +158,8 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
     }
 
     /**
-     *
+     * Constructor for WallDirectorCommunicator.
+     * Initializes port, success, and error command lists with default values.
      */
     public WallDirectorCommunicator() {
         super();
@@ -308,7 +317,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param property the command property from which to retrieve data
      */
     private void retrieveDataByCommandName(WallDirectorCommandList property) {
-        if ("".equals(property.getCommand())) {
+        if (WallDirectorConstant.EMPTY.equals(property.getCommand())) {
             return;
         }
         if (!isConfigManagement && property.isControl()) {
@@ -453,7 +462,6 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 return null;
             }
             String result = new String(response, StandardCharsets.UTF_8);
-            System.out.println(result.replace("\n", WallDirectorConstant.EMPTY));
             return result.replace("\n", WallDirectorConstant.EMPTY);
         } catch (Exception e) {
             logger.error(String.format("Error when retrieving property name: %s", name), e);
@@ -550,7 +558,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
             switch (item) {
                 case BACKLIGHT_MODE:
                     addAdvancedControlProperties(advancedControllableProperties, stats,
-                            createSwitch(propertyName, "AUTO".equals(value) ? 0 : 1, "Auto", "Manual"), value);
+                            createSwitch(propertyName, "AUTO".equals(value) ? 0 : 1, WallDirectorConstant.AUTO, WallDirectorConstant.MANUAL), value);
                     break;
                 case POWER_STANDBY:
                     addAdvancedControlProperties(advancedControllableProperties, stats,
@@ -558,11 +566,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                     break;
                 case SYSTEM_REBOOT:
                     addAdvancedControlProperties(advancedControllableProperties, stats,
-                            createButton(propertyName, "Reboot", "Rebooting", 0), "");
+                            createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
                     break;
                 case SYSTEM_POWER:
                     addAdvancedControlProperties(advancedControllableProperties, stats,
-                            createSwitch(propertyName, "OFF".equals(value) ? 0 : 1, "Off", "On"), value);
+                            createSwitch(propertyName, "OFF".equals(value) ? 0 : 1, WallDirectorConstant.OFF, WallDirectorConstant.ON), value);
                     break;
                 default:
                     stats.put(propertyName, value);
@@ -584,7 +592,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
                 if (item.equals(WallDirectorCommandList.PS_REBOOT)) {
                     addAdvancedControlProperties(advancedControllableProperties, stats,
-                            createButton(propertyName, "Reboot", "Rebooting", 0), WallDirectorConstant.EMPTY);
+                            createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
                     continue;
                 }
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
@@ -600,7 +608,6 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param advancedControllableProperties the list to store advanced controllable properties
      */
     private void populateVideoControllers(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
-        String[] outputMode = {"4K", "AUTO", "1080p"};
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.VIDEO_CONTROLLER)) {
             for (int i = 0; i < videoControllerIDList.size(); i++) {
                 String propertyName = videoControllerIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
@@ -609,11 +616,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 switch (item) {
                     case VC_REBOOT:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
-                                createButton(propertyName, "Reboot", "Rebooting", 0), WallDirectorConstant.EMPTY);
+                                createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
                         break;
                     case OUTPUT_MODE:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
-                                createDropdown(propertyName, outputMode, value), value);
+                                createDropdown(propertyName, OutputModeEnum.toArray(), value), value);
                         break;
                     default:
                         stats.put(propertyName, value);
@@ -623,8 +630,13 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
         }
     }
 
+    /**
+     * Populates network status properties into the provided stats map.
+     *
+     * @param stats the map to store network status properties and values
+     */
     private void populateNetworkStatus(Map<String, String> stats) {
-        List<WallDirectorCommandList> generalList = filterByGroup("Network");
+        List<WallDirectorCommandList> generalList = filterByGroup(WallDirectorConstant.NETWORK);
         for (WallDirectorCommandList item : generalList) {
             String propertyName = item.getGroup() + WallDirectorConstant.HASH + item.getName();
             String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
@@ -639,7 +651,6 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param advancedControllableProperties the list to store advanced controllable properties
      */
     private void populateZones(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
-        String[] cabinetInput = {"Fill", "Crop", "16x9", "4x3", "Native", "Auto"};
         List<WallDirectorCommandList> zoneList = filterByGroup(WallDirectorConstant.ZONE);
         for (WallDirectorCommandList item : zoneList) {
             for (int i = 0; i < zoneIDList.size(); i++) {
@@ -655,7 +666,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                         break;
                     case ZONE_ASPECT:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
-                                createDropdown(propertyName, cabinetInput, value), value);
+                                createDropdown(propertyName, ZoneAspectEnum.toArray(), value), value);
                         break;
                     default:
                         stats.put(propertyName, value);
@@ -682,11 +693,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
         }
         for (int i = 0; i < presetIDList.size(); i++) {
             String presetName = (presetIDList.size() > 1)
-                    ? "Preset0" + (i + 1) + "#PresetName"
-                    : "Preset#PresetName";
+                    ? WallDirectorConstant.PRESET + "0" + (i + 1) + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME
+                    : WallDirectorConstant.PRESET + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME;
             String propertyName = "Preset#Preset" + (i + 1) + localCacheMapOfPropertyNameAndValue.get(presetName);
             addAdvancedControlProperties(advancedControllableProperties, stats,
-                    createButton(propertyName, "Recall", "Recalling", 0), WallDirectorConstant.EMPTY);
+                    createButton(propertyName, WallDirectorConstant.RECALL, WallDirectorConstant.RECALLING, 0), WallDirectorConstant.EMPTY);
         }
     }
 
@@ -708,10 +719,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                         case INPUT_CONTRAST:
                             addAdvancedControlProperties(advancedControllableProperties, stats,
                                     createSlider(stats, propertyName.concat("(%)"), "0", "100", 0f, 100f, Float.valueOf(value)), value);
-                            stats.put(propertyName.concat("CurrentValue(%)"), value);
+                            stats.put(propertyName.concat(WallDirectorConstant.CURRENT_VALUE).concat("(%)"), value);
                             break;
                         case INPUT_INFO:
-                            String[] parts = value.split("\\s+");
+                            String[] parts = value.split(WallDirectorConstant.SPACE_REGEX);
                             for (InputInfoEnum property : InputInfoEnum.values()) {
                                 int position = property.getPosition();
                                 if (position < parts.length) {
@@ -740,8 +751,6 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param advancedControllableProperties the list to store advanced controllable properties
      */
     private void populatePanel(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
-        String[] colorTemperature = {"3200K", "5500K", "6500K", "8500K", "9300K", "NATIVE", "CUSTOM"};
-        String[] cabinetInput = {"Auto", "HDMI1", "HDMI2"};
         String[] colors = {"Red", "Green", "Blue"};
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.PANEL)) {
             for (int i = 0; i < panelIDList.size(); i++) {
@@ -751,7 +760,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 switch (item) {
                     case BALANCE_TEMPERATURE:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
-                                createDropdown(propertyName, colorTemperature, value), value);
+                                createDropdown(propertyName, ColorTemperatureEnum.toArray(), value), value);
                         break;
                     case PANEL_POSITION:
                         String[] position = value.trim().split(WallDirectorConstant.SPACE_REGEX);
@@ -771,7 +780,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                             String valueColor = whiteColorValues[index];
                             addAdvancedControlProperties(advancedControllableProperties, stats,
                                     createSlider(stats, group.concat(WallDirectorConstant.HASH).concat(name).concat("(%)"), "0", "100", 0f, 100f, Float.valueOf(valueColor)), valueColor);
-                            stats.put(group.concat(WallDirectorConstant.HASH).concat(name).concat("CurrentValue(%)"), valueColor);
+                            stats.put(group.concat(WallDirectorConstant.HASH).concat(name).concat(WallDirectorConstant.CURRENT_VALUE).concat("(%)"), valueColor);
                         }
                         break;
                     case GRAY_BALANCE_GAMMA:
@@ -784,11 +793,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                             String valueColor = grayColorValues[index];
                             addAdvancedControlProperties(advancedControllableProperties, stats,
                                     createSlider(stats, name, "1.8", "2.6", 1.8f, 2.6f, Float.valueOf(valueColor)), valueColor);
-                            stats.put(name.concat("CurrentValue"), valueColor);
+                            stats.put(name.concat(WallDirectorConstant.CURRENT_VALUE), valueColor);
                         }
                         break;
                     case CABINET_INPUT:
-                        addAdvancedControlProperties(advancedControllableProperties, stats, createDropdown(propertyName, cabinetInput, value), value);
+                        addAdvancedControlProperties(advancedControllableProperties, stats, createDropdown(propertyName, CabinetInputEnum.toArray(), value), value);
                         break;
                     default:
                         stats.put(propertyName, value);
@@ -819,7 +828,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
             if (StringUtils.isNotNullOrEmpty(value)) {
                 stats.put(property.getName(), value);
             } else {
-                stats.put(property.getName(), "");
+                stats.put(property.getName(), WallDirectorConstant.EMPTY);
             }
             advancedControllableProperties.add(property);
         }

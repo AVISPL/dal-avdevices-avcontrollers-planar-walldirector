@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 AVI-SPL, Inc. All Rights Reserved.
+ *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
  */
 
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
@@ -22,7 +22,7 @@ public class WallDirectorCommunicatorTest {
     @BeforeEach
     void setUp() throws Exception {
         wallDirectorCommunicator = new WallDirectorCommunicator();
-        wallDirectorCommunicator.setHost("127.0.0.1");
+        wallDirectorCommunicator.setHost("172.31.15.19");
         wallDirectorCommunicator.setLogin("");
         wallDirectorCommunicator.setPassword("");
         wallDirectorCommunicator.setPort(57);

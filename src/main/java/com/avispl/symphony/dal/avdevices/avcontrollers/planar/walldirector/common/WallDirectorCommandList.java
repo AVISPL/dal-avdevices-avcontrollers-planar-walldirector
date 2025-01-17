@@ -1,7 +1,20 @@
+/*
+ *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
 import java.util.Arrays;
 
+/**
+ * Enum representing a list of commands and their associated properties
+ * for controlling the Wall Director system.
+ * Each enum constant is associated with a name, a command, a group, and a controllability flag.
+ *
+ * @author Kevin / Symphony Dev Team<br>
+ * Created on 1/17/2025
+ * @since 1.0.0
+ */
 public enum WallDirectorCommandList {
     PANEL_MODEL("PanelModel", "WALL.MODEL","", false),
     POWER_STANDBY("PowerStandby", "STANDBY.MODE","", true),
@@ -76,7 +89,7 @@ public enum WallDirectorCommandList {
     private boolean isControl;
 
     /**
-     * SennheiserPropertiesList instantiation
+     * WallDirectorCommandList instantiation
      *
      * @param name property name
      * @param command property command
