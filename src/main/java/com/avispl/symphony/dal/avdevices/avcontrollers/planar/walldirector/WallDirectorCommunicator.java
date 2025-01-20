@@ -69,6 +69,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
     private ExecutorService timeoutManagementExSer;
 
     /**
+     * Configurable property for historical properties, comma separated values kept as set locally
+     */
+    private Set<String> historicalProperties = new HashSet<>();
+
+    /**
      * Local cache stores data after a period of time
      */
     private final Map<String, String> localCacheMapOfPropertyNameAndValue = new HashMap<>();
@@ -158,6 +163,27 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
     }
 
     /**
+     * Retrieves {@link #historicalProperties}
+     *
+     * @return value of {@link #historicalProperties}
+     */
+    public String getHistoricalProperties() {
+        return String.join(",", this.historicalProperties);
+    }
+
+    /**
+     * Sets {@link #historicalProperties} value
+     *
+     * @param historicalProperties new value of {@link #historicalProperties}
+     */
+    public void setHistoricalProperties(String historicalProperties) {
+        this.historicalProperties.clear();
+        Arrays.asList(historicalProperties.split(",")).forEach(propertyName -> {
+            this.historicalProperties.add(propertyName.trim());
+        });
+    }
+
+    /**
      * Constructor for WallDirectorCommunicator.
      * Initializes port, success, and error command lists with default values.
      */
@@ -217,6 +243,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
             ExtendedStatistics extendedStatistics = new ExtendedStatistics();
             Map<String, String> stats = new HashMap<>();
             List<AdvancedControllableProperty> advancedControllableProperties = new ArrayList<>();
+            Map<String, String> dynamicStats = new HashMap<>();
             if (countMonitoringAndControllingCommand == 0) {
                 countMonitoringAndControllingCommand = getNumberMonitoringAndControllingCommand();
             }
@@ -230,14 +257,15 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 }
                 destroyChannel();
                 populateGeneralData(stats, advancedControllableProperties);
-                populatePanel(stats, advancedControllableProperties);
-                populatePowerSupplies(stats, advancedControllableProperties);
+                populatePanel(stats, advancedControllableProperties, dynamicStats);
+                populatePowerSupplies(stats, advancedControllableProperties, dynamicStats);
                 populateSources(stats, advancedControllableProperties);
-                populateVideoControllers(stats, advancedControllableProperties);
+                populateVideoControllers(stats, advancedControllableProperties, dynamicStats);
                 populateNetworkStatus(stats);
                 populateZones(stats, advancedControllableProperties);
                 populatePresets(stats, advancedControllableProperties);
                 extendedStatistics.setStatistics(stats);
+                extendedStatistics.setDynamicStatistics(dynamicStats);
                 extendedStatistics.setControllableProperties(advancedControllableProperties);
                 localExtendedStatistics = extendedStatistics;
             }
@@ -515,7 +543,9 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 //If the Future is not completed after the defaultConfigTimeout =>  update the failedMonitor and destroy the connection.
                 int lastIndex = devicesExecutionPool.size() - 1;
                 if (!devicesExecutionPool.get(lastIndex).isDone()) {
-                    failedMonitor.add(commandIndex.getName());
+                    if (StringUtils.isNotNullOrEmpty(commandIndex.getCommand())) {
+                        failedMonitor.add(commandIndex.getGroup() + "#" + commandIndex.getName());
+                    }
                     destroyChannel();
                     localCacheMapOfPropertyNameAndValue.remove(commandIndex.getName());
                     devicesExecutionPool.get(lastIndex).cancel(true);
@@ -541,7 +571,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      */
     private List<WallDirectorCommandList> filterByGroup(String group) {
         return Arrays.stream(WallDirectorCommandList.values())
-                .filter(e -> e.getGroup().equals(group))
+                .filter(e -> e.getGroup().equals(group) && (isConfigManagement || !e.isControl()))
                 .collect(Collectors.toList());
     }
 
@@ -584,19 +614,32 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param stats                          the map to store power supply properties and their values
      * @param advancedControllableProperties the list to store advanced controllable properties
      */
-    private void populatePowerSupplies(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+    private void populatePowerSupplies(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> dynamicStats) {
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.POWER_SUPPLY)) {
             for (int i = 0; i < powerSupplyIDList.size(); i++) {
                 String propertyName = powerSupplyIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
                         : item.getGroup().concat(WallDirectorConstant.HASH).concat(item.getName());
-
-                if (item.equals(WallDirectorCommandList.PS_REBOOT)) {
-                    addAdvancedControlProperties(advancedControllableProperties, stats,
-                            createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
-                    continue;
-                }
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
-                stats.put(propertyName, value);
+                switch (item) {
+                    case PS_REBOOT:
+                        addAdvancedControlProperties(advancedControllableProperties, stats,
+                                createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
+                        break;
+                    case PS_TEMPERATURE:
+                        boolean propertyListed = false;
+                        if (!historicalProperties.isEmpty()) {
+                            propertyListed = historicalProperties.contains(propertyName);
+                        }
+                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                            dynamicStats.put(propertyName, value);
+                        } else {
+                            stats.put(propertyName, value);
+                        }
+                        break;
+                    default:
+                        stats.put(propertyName, value);
+                        break;
+                }
             }
         }
     }
@@ -607,13 +650,24 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @param stats                          the map to store video controller properties and their values
      * @param advancedControllableProperties the list to store advanced controllable properties
      */
-    private void populateVideoControllers(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+    private void populateVideoControllers(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> dynamicStats) {
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.VIDEO_CONTROLLER)) {
             for (int i = 0; i < videoControllerIDList.size(); i++) {
                 String propertyName = videoControllerIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
                         : item.getGroup().concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
                 switch (item) {
+                    case VC_TEMPERATURE:
+                        boolean propertyListed = false;
+                        if (!historicalProperties.isEmpty()) {
+                            propertyListed = historicalProperties.contains(propertyName);
+                        }
+                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                            dynamicStats.put(propertyName, value);
+                        } else {
+                            stats.put(propertyName, value);
+                        }
+                        break;
                     case VC_REBOOT:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
                                 createButton(propertyName, WallDirectorConstant.REBOOT, WallDirectorConstant.REBOOTING, 0), WallDirectorConstant.EMPTY);
@@ -691,13 +745,15 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
             String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(properName));
             stats.put(properName, value);
         }
-        for (int i = 0; i < presetIDList.size(); i++) {
-            String presetName = (presetIDList.size() > 1)
-                    ? WallDirectorConstant.PRESET + "0" + (i + 1) + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME
-                    : WallDirectorConstant.PRESET + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME;
-            String propertyName = "Preset#Preset" + (i + 1) + localCacheMapOfPropertyNameAndValue.get(presetName);
-            addAdvancedControlProperties(advancedControllableProperties, stats,
-                    createButton(propertyName, WallDirectorConstant.RECALL, WallDirectorConstant.RECALLING, 0), WallDirectorConstant.EMPTY);
+        if (isConfigManagement) {
+            for (int i = 0; i < presetIDList.size(); i++) {
+                String presetName = (presetIDList.size() > 1)
+                        ? WallDirectorConstant.PRESET + "0" + (i + 1) + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME
+                        : WallDirectorConstant.PRESET + WallDirectorConstant.HASH + WallDirectorConstant.PRESET_NAME;
+                String propertyName = "Preset#Preset" + (i + 1) + localCacheMapOfPropertyNameAndValue.get(presetName);
+                addAdvancedControlProperties(advancedControllableProperties, stats,
+                        createButton(propertyName, WallDirectorConstant.RECALL, WallDirectorConstant.RECALLING, 0), WallDirectorConstant.EMPTY);
+            }
         }
     }
 
@@ -749,8 +805,9 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      *
      * @param stats                          the map to store panel properties and their values
      * @param advancedControllableProperties the list to store advanced controllable properties
+     * @param dynamicStats                   the map to store panel properties and their values
      */
-    private void populatePanel(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+    private void populatePanel(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> dynamicStats) {
         String[] colors = {"Red", "Green", "Blue"};
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.PANEL)) {
             for (int i = 0; i < panelIDList.size(); i++) {
@@ -758,6 +815,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 String propertyName = group.concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
                 switch (item) {
+                    case PANEL_TEMPERATURE:
+                        boolean propertyListed = false;
+                        if (!historicalProperties.isEmpty()) {
+                            propertyListed = historicalProperties.contains(propertyName);
+                        }
+                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                            dynamicStats.put(propertyName, value);
+                        } else {
+                            stats.put(propertyName, value);
+                        }
+                        break;
                     case BALANCE_TEMPERATURE:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
                                 createDropdown(propertyName, ColorTemperatureEnum.toArray(), value), value);
@@ -814,7 +882,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * @return value after checking
      */
     private String getDefaultValueForNullData(String value) {
-        return StringUtils.isNotNullOrEmpty(value) ? value.replace("\"", "") : "None";
+        return StringUtils.isNotNullOrEmpty(value) ? value.replace("\"", "") : WallDirectorConstant.NONE;
     }
 
     private void addAdvancedControlProperties(List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> stats, AdvancedControllableProperty property, String value) {

@@ -22,7 +22,7 @@ public class WallDirectorCommunicatorTest {
     @BeforeEach
     void setUp() throws Exception {
         wallDirectorCommunicator = new WallDirectorCommunicator();
-        wallDirectorCommunicator.setHost("172.31.15.19");
+        wallDirectorCommunicator.setHost("127.0.0.1");
         wallDirectorCommunicator.setLogin("");
         wallDirectorCommunicator.setPassword("");
         wallDirectorCommunicator.setPort(57);
@@ -37,11 +37,31 @@ public class WallDirectorCommunicatorTest {
     }
 
     @Test
-    void testLoginSuccess() throws Exception {
+    void testMultipleStatistic() throws Exception {
+        wallDirectorCommunicator.setConfigManagement("false");
+        extendedStatistic = (ExtendedStatistics) wallDirectorCommunicator.getMultipleStatistics().get(0);
+        Map<String, String> statistics = extendedStatistic.getStatistics();
+        Assert.assertEquals(104, statistics.size());
+    }
+
+    @Test
+    void testMultipleStatisticWithControl() throws Exception {
         wallDirectorCommunicator.setConfigManagement("true");
         extendedStatistic = (ExtendedStatistics) wallDirectorCommunicator.getMultipleStatistics().get(0);
         Map<String, String> statistics = extendedStatistic.getStatistics();
         List<AdvancedControllableProperty> advancedControllableProperties =  extendedStatistic.getControllableProperties();
         Assert.assertEquals(171, statistics.size());
+        Assert.assertEquals(42, advancedControllableProperties.size());
+    }
+
+    @Test
+    void testHistoricalProperties() throws Exception {
+        wallDirectorCommunicator.setConfigManagement("true");
+        wallDirectorCommunicator.setHistoricalProperties("VideoController01#Temperature(C), PowerSupply01#Temperature(C)");
+        extendedStatistic = (ExtendedStatistics) wallDirectorCommunicator.getMultipleStatistics().get(0);
+        Map<String, String> statistics = extendedStatistic.getStatistics();
+        List<AdvancedControllableProperty> advancedControllableProperties =  extendedStatistic.getControllableProperties();
+        Map<String, String> dynamicStats = extendedStatistic.getDynamicStatistics();
+        Assert.assertEquals(169, statistics.size());
     }
 }

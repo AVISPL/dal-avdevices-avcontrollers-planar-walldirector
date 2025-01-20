@@ -4,8 +4,6 @@
 
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
-import java.util.Arrays;
-
 /**
  * Enum representing a list of commands and their associated properties
  * for controlling the Wall Director system.
@@ -25,14 +23,14 @@ public enum WallDirectorCommandList {
     FRAME_HEIGHT("FrameHeight", "WALL.HEIGHT","", true),
     FRAME_WIDTH("FrameWidth", "WALL.WIDTH","", true),
     SYSTEM_POWER("SystemPower", "SYSTEM.POWER","", true),
-    SYSTEM_REBOOT("SystemReboot", "","", false),
+    SYSTEM_REBOOT("SystemReboot", "","", true),
 
     PS_ID("ID", "ID(PS%s)","PowerSupply", false),
     PS_MODEL_NAME("ModelName", "MODEL.NAME(PS%s)","PowerSupply", false),
     PS_SERIAL_NUMBER("SerialNumber", "SERIAL.NUMBER(PS%s)","PowerSupply", false),
     PS_TEMPERATURE("Temperature(C)", "TEMPERATURE(PS%s)","PowerSupply", false),
     PS_FIRMWARE_VERSION("FirmwareVersion", "FIRMWARE.VERSION(PS%s)","PowerSupply", false),
-    PS_REBOOT("Reboot", "","PowerSupply", false),
+    PS_REBOOT("Reboot", "","PowerSupply", true),
 
     VC_ID("ID", "ID(VC%s)","VideoController", false),
     VC_MODEL_NAME("ModelName", "MODEL.NAME(VC%s)","VideoController", false),
@@ -41,7 +39,7 @@ public enum WallDirectorCommandList {
     VC_FIRMWARE_VERSION("FirmwareVersion", "FIRMWARE.VERSION(VC%s)","VideoController", false),
     VC_FAN_STATUS("FanStatus", "FAN.STATUS(VC%s)","VideoController", false),
     OUTPUT_MODE("OutputMode", "OUTPUT.MODE(VC%s)","VideoController", true),
-    VC_REBOOT("Reboot", "","VideoController", false),
+    VC_REBOOT("Reboot", "","VideoController", true),
 
     SYSTEM_STATE("SystemState", "SYSTEM.STATE","Network", false),
     HOSTNAME("Hostname", "HOSTNAME","Network", false),
@@ -136,10 +134,5 @@ public enum WallDirectorCommandList {
      */
     public String getGroup() {
         return group;
-    }
-
-    public static WallDirectorCommandList getByName(String name) {
-        return Arrays.stream(values()).filter(group -> group.getName().equals(name)).findFirst()
-                .orElseThrow(() -> new IllegalStateException(String.format("control group %s is not supported.", name)));
     }
 }

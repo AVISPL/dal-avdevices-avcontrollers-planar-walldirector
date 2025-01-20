@@ -12,6 +12,7 @@ package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.comm
  * @since 1.0.0
  */
 public class WallDirectorConstant {
+    public static final String NONE = "None";
     public static final String EMPTY = "";
     public static final String HASH = "#";
     public static final String SPACE = " ";
