@@ -585,6 +585,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
         for (WallDirectorCommandList item : filterByGroup(WallDirectorConstant.EMPTY)) {
             String propertyName = item.getName();
             String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+            if (WallDirectorConstant.NONE.equals(value)) {
+                stats.put(propertyName, value);
+                continue;
+            }
             switch (item) {
                 case BACKLIGHT_MODE:
                     addAdvancedControlProperties(advancedControllableProperties, stats,
@@ -620,6 +624,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 String propertyName = powerSupplyIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
                         : item.getGroup().concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+                if (WallDirectorConstant.NONE.equals(value)) {
+                    stats.put(propertyName, value);
+                    continue;
+                }
                 switch (item) {
                     case PS_REBOOT:
                         addAdvancedControlProperties(advancedControllableProperties, stats,
@@ -630,7 +638,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                         if (!historicalProperties.isEmpty()) {
                             propertyListed = historicalProperties.contains(propertyName);
                         }
-                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                        if (propertyListed) {
                             dynamicStats.put(propertyName, value);
                         } else {
                             stats.put(propertyName, value);
@@ -656,13 +664,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 String propertyName = videoControllerIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
                         : item.getGroup().concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+                if (WallDirectorConstant.NONE.equals(value)) {
+                    stats.put(propertyName, value);
+                    continue;
+                }
                 switch (item) {
                     case VC_TEMPERATURE:
                         boolean propertyListed = false;
                         if (!historicalProperties.isEmpty()) {
                             propertyListed = historicalProperties.contains(propertyName);
                         }
-                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                        if (propertyListed) {
                             dynamicStats.put(propertyName, value);
                         } else {
                             stats.put(propertyName, value);
@@ -711,6 +723,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 String propertyName = zoneIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)).concat(WallDirectorConstant.HASH).concat(item.getName())
                         : item.getGroup().concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+                if (WallDirectorConstant.NONE.equals(value)) {
+                    stats.put(propertyName, value);
+                    continue;
+                }
                 switch (item) {
                     case ZONE_ORDER:
                     case EXPECTED_SOURCE_HEIGHT:
@@ -770,6 +786,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                     String group = String.format("Source_VC%s.IN%s", s, j);
                     String propertyName = group.concat(WallDirectorConstant.HASH) + item.getName();
                     String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+                    if (WallDirectorConstant.NONE.equals(value)) {
+                        stats.put(propertyName, value);
+                        continue;
+                    }
                     switch (item) {
                         case INPUT_BRIGHTNESS:
                         case INPUT_CONTRAST:
@@ -814,13 +834,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                 String group = panelIDList.size() > 1 ? item.getGroup().concat("0" + (i + 1)) : item.getGroup();
                 String propertyName = group.concat(WallDirectorConstant.HASH).concat(item.getName());
                 String value = getDefaultValueForNullData(localCacheMapOfPropertyNameAndValue.get(propertyName));
+                if (WallDirectorConstant.NONE.equals(value)) {
+                    stats.put(propertyName, value);
+                    continue;
+                }
                 switch (item) {
                     case PANEL_TEMPERATURE:
                         boolean propertyListed = false;
                         if (!historicalProperties.isEmpty()) {
                             propertyListed = historicalProperties.contains(propertyName);
                         }
-                        if (propertyListed && !WallDirectorConstant.NONE.equals(value)) {
+                        if (propertyListed) {
                             dynamicStats.put(propertyName, value);
                         } else {
                             stats.put(propertyName, value);
@@ -885,6 +909,14 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
         return StringUtils.isNotNullOrEmpty(value) ? value.replace("\"", "") : WallDirectorConstant.NONE;
     }
 
+    /**
+     * Adds or updates an advanced controllable property and its value in the provided lists.
+     *
+     * @param advancedControllableProperties the list of controllable properties
+     * @param stats the map of stats to update with the property value
+     * @param property the property to add or update
+     * @param value the associated value
+     */
     private void addAdvancedControlProperties(List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> stats, AdvancedControllableProperty property, String value) {
         if (property != null) {
             for (AdvancedControllableProperty controllableProperty : advancedControllableProperties) {
