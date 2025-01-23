@@ -35,7 +35,21 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * WallDirectorCommunicator
+ * WallDirectorCommunicator is a communicator class for Wall Director devices.
+ * The communicator is based on the SocketCommunicator class and uses a socket-based protocol
+ * to communicate with the devices. It provides functionality to monitor and control Wall Director devices
+ * by implementing the Monitorable and Controller interfaces.
+ * <p>
+ * As part of the Monitorable interface, it provides methods to track device statuses
+ * and report failures or anomalies. The Controller interface enables functionality such as
+ * sending commands to control device behavior or retrieve specific configuration details.
+ * <p>
+ * The communication protocol for Wall Director devices requires specific command and response
+ * formats, which are handled internally by this class. Error handling and retries are also
+ * incorporated for robust communication.
+ * <p>
+ * Note: Detailed specifications of the Wall Director socket protocol should be referred to
+ * in the Wall Director Communication Protocol Guide.
  *
  * @author Kevin / Symphony Dev Team<br>
  * Created on 1/7/2025
@@ -43,18 +57,64 @@ import java.util.stream.Collectors;
  */
 public class WallDirectorCommunicator extends SocketCommunicator implements Monitorable, Controller {
 
+    /**
+     * Stores the extended statistics related to the current state of the system.
+     */
     private ExtendedStatistics localExtendedStatistics;
-    private final ReentrantLock reentrantLock = new ReentrantLock();
-    private boolean isEmergencyDelivery;
-    private final Set<String> failedMonitor = new HashSet<>();
-    private int countMonitoringAndControllingCommand = 0;
-    private List<String> powerSupplyIDList = new ArrayList<>();
-    private List<String> videoControllerIDList = new ArrayList<>();
-    private List<String> zoneIDList = new ArrayList<>();
-    private List<String> presetIDList = new ArrayList<>();
-    private List<String> panelIDList = new ArrayList<>();
-    private final int sourceInputCount = 4;
 
+    /**
+     * A reentrant lock used to ensure thread-safe operations on shared resources.
+     */
+    private final ReentrantLock reentrantLock = new ReentrantLock();
+
+    /**
+     * Indicates whether the system is currently in an emergency delivery mode.
+     * When true, the system may bypass certain regular monitoring operations.
+     */
+    private boolean isEmergencyDelivery;
+
+    /**
+     * A set that tracks the IDs of monitors that have failed or encountered issues.
+     */
+    private final Set<String> failedMonitor = new HashSet<>();
+
+    /**
+     * A counter that tracks the number of monitoring and controlling commands
+     * executed by the system.
+     */
+    private int countMonitoringAndControllingCommand = 0;
+
+    /**
+     * A list of IDs representing the power supply components being monitored
+     * or controlled.
+     */
+    private List<String> powerSupplyIDList = new ArrayList<>();
+
+    /**
+     * A list of IDs representing the video controllers being monitored
+     * or controlled.
+     */
+    private List<String> videoControllerIDList = new ArrayList<>();
+
+    /**
+     * A list of IDs representing the zones being monitored or controlled.
+     */
+    private List<String> zoneIDList = new ArrayList<>();
+
+    /**
+     * A list of IDs representing the presets being monitored or controlled.
+     */
+    private List<String> presetIDList = new ArrayList<>();
+
+    /**
+     * A list of IDs representing the panels being monitored or controlled.
+     */
+    private List<String> panelIDList = new ArrayList<>();
+
+    /**
+     * The number of source inputs supported by the system.
+     */
+    private final int sourceInputCount = 4;
 
     /**
      * Pool for keeping all the async operations in, to track any operations in progress and cancel them if needed
@@ -72,6 +132,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * Configurable property for historical properties, comma separated values kept as set locally
      */
     private Set<String> historicalProperties = new HashSet<>();
+
+    /**
+     * List of property groups to display
+     */
+    private List<String> displayPropertyGroups = Collections.singletonList("All");
 
     /**
      * Local cache stores data after a period of time
@@ -184,6 +249,24 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
     }
 
     /**
+     * Retrieves {@link #displayPropertyGroups}
+     *
+     * @return value of {@link #displayPropertyGroups}
+     */
+    public String getDisplayPropertyGroups() {
+        return String.join(",", displayPropertyGroups);
+    }
+
+    /**
+     * Sets {@link #displayPropertyGroups} value
+     *
+     * @param displayPropertyGroups new value of {@link #displayPropertyGroups}
+     */
+    public void setDisplayPropertyGroups(String displayPropertyGroups) {
+        this.displayPropertyGroups = Arrays.stream(displayPropertyGroups.split(",")).map(String::trim).filter(StringUtils::isNotNullOrEmpty).collect(Collectors.toList());
+    }
+
+    /**
      * Constructor for WallDirectorCommunicator.
      * Initializes port, success, and error command lists with default values.
      */
@@ -256,14 +339,27 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
                     throw new ResourceNotReachableException(String.format("There was an error while retrieving monitoring data for all %s properties.", countMonitoringAndControllingCommand));
                 }
                 destroyChannel();
+                boolean showAllGroups = displayPropertyGroups.contains("All") || displayPropertyGroups.isEmpty();
                 populateGeneralData(stats, advancedControllableProperties);
-                populatePanel(stats, advancedControllableProperties, dynamicStats);
-                populatePowerSupplies(stats, advancedControllableProperties, dynamicStats);
-                populateSources(stats, advancedControllableProperties);
-                populateVideoControllers(stats, advancedControllableProperties, dynamicStats);
                 populateNetworkStatus(stats);
-                populateZones(stats, advancedControllableProperties);
-                populatePresets(stats, advancedControllableProperties);
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.PANEL)) {
+                    populatePanel(stats, advancedControllableProperties, dynamicStats);
+                }
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.POWER_SUPPLY)) {
+                    populatePowerSupplies(stats, advancedControllableProperties, dynamicStats);
+                }
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.SOURCE)) {
+                    populateSources(stats, advancedControllableProperties);
+                }
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.VIDEO_CONTROLLER)) {
+                    populateVideoControllers(stats, advancedControllableProperties, dynamicStats);
+                }
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.ZONE)) {
+                    populateZones(stats, advancedControllableProperties);
+                }
+                if (showAllGroups || displayPropertyGroups.contains(WallDirectorConstant.PRESET)) {
+                    populatePresets(stats, advancedControllableProperties);
+                }
                 extendedStatistics.setStatistics(stats);
                 extendedStatistics.setDynamicStatistics(dynamicStats);
                 extendedStatistics.setControllableProperties(advancedControllableProperties);
@@ -913,23 +1009,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
      * Adds or updates an advanced controllable property and its value in the provided lists.
      *
      * @param advancedControllableProperties the list of controllable properties
-     * @param stats the map of stats to update with the property value
-     * @param property the property to add or update
-     * @param value the associated value
+     * @param stats                          the map of stats to update with the property value
+     * @param property                       the property to add or update
+     * @param value                          the associated value
      */
     private void addAdvancedControlProperties(List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> stats, AdvancedControllableProperty property, String value) {
         if (property != null) {
-            for (AdvancedControllableProperty controllableProperty : advancedControllableProperties) {
-                if (controllableProperty.getName().equals(property.getName())) {
-                    advancedControllableProperties.remove(controllableProperty);
-                    break;
-                }
-            }
-            if (StringUtils.isNotNullOrEmpty(value)) {
-                stats.put(property.getName(), value);
-            } else {
-                stats.put(property.getName(), WallDirectorConstant.EMPTY);
-            }
+            advancedControllableProperties.removeIf(controllableProperty -> controllableProperty.getName().equals(property.getName()));
+
+            String propertyValue = StringUtils.isNotNullOrEmpty(value) ? value : WallDirectorConstant.EMPTY;
+            stats.put(property.getName(), propertyValue);
+
             advancedControllableProperties.add(property);
         }
     }
