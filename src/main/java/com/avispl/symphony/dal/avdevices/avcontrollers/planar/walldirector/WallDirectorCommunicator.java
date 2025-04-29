@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -144,7 +145,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	/**
 	 * Duration to wait after rebooting (in milliseconds).
 	 */
-	public static final long REBOOT_TIME = (long) (2.5 * 60 * 1000);
+	public static final long REBOOT_TIME = 3 * 60 * 1000;
 
 	/**
 	 * Lock used to ensure thread-safe operations.
@@ -195,6 +196,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 * Store of historical properties
 	 */
 	private Set<String> historicalProperties;
+	/**
+	 * A flag indicating whether the device has recently rebooted.
+	 */
+	private boolean isRebooted;
 
 	public WallDirectorCommunicator() {
 		this.reentrantLock = new ReentrantLock();
@@ -210,6 +215,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.presets = new HashMap<>();
 		this.networkStatus = new EnumMap<>(NetworkStatusProperty.class);
 		this.historicalProperties = new HashSet<>();
+		this.isRebooted = false;
 
 		this.setCommandSuccessList(Collections.singletonList(Constant.CR));
 		this.setCommandErrorList(Collections.singletonList(Constant.CR));
@@ -238,6 +244,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	public List<Statistics> getMultipleStatistics() throws Exception {
 		this.reentrantLock.lock();
 		try {
+			if (isRebooted) {
+				this.isRebooted = false;
+				return Collections.singletonList(this.localExtendedStatistics);
+			}
 			this.setupData();
 			ExtendedStatistics extendedStatistics = new ExtendedStatistics();
 			Map<String, String> statistics = this.getVWGeneralProperties();
@@ -279,6 +289,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 				}
 				case "SystemReboot": {
 					this.sendControlCommand(Command.SYSTEM_REBOOT, Command.SYSTEM_REBOOT.getName());
+					this.isRebooted = true;
 					this.destroyChannel();
 					break;
 				}
@@ -796,11 +807,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 */
 	private List<AdvancedControllableProperty> getGeneralControllers() {
 		List<AdvancedControllableProperty> controllers = new ArrayList<>();
-		controllers.add(this.generateControllableSwitch(
-				VWGeneralProperty.SYSTEM_POWER.getName(),
-				"On", "Off",
-				this.vwGeneral.get(VWGeneralProperty.SYSTEM_POWER).split(Constant.COLON_REGEX)[1].equals("ON") ? "1" : "0"
-		));
+		String powerStatus = Optional.ofNullable(this.vwGeneral.get(VWGeneralProperty.SYSTEM_POWER))
+				.map(s -> s.split(Constant.COLON_REGEX)).filter(arr -> arr.length > 1)
+				.map(arr -> "ON".equals(arr[1]) ? "1" : "0").orElse("0");
+		controllers.add(this.generateControllableSwitch(VWGeneralProperty.SYSTEM_POWER.getName(), "On", "Off", powerStatus));
 		controllers.add(this.generateControllableButton(VWGeneralProperty.SYSTEM_REBOOT.getName(), "Reboot", "Rebooting", REBOOT_TIME));
 
 		return controllers;
@@ -845,13 +855,15 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			return Collections.emptyMap();
 		}
 		Map<String, String> dynamicStatistics = new HashMap<>();
-		this.localExtendedStatistics.getStatistics().entrySet().parallelStream()
-				.filter(statistic -> {
-					String[] components = statistic.getKey().split(" - ");
+		if (this.localExtendedStatistics.getStatistics() != null) {
+			this.localExtendedStatistics.getStatistics().entrySet().parallelStream()
+					.filter(statistic -> {
+						String[] components = statistic.getKey().split(" - ");
 
-					return components.length > 0 && temperatures.contains(components[1]);
-				})
-				.forEach(statistic -> dynamicStatistics.put(statistic.getKey(), statistic.getValue()));
+						return components.length > 1 && temperatures.contains(components[1]);
+					})
+					.forEach(statistic -> dynamicStatistics.put(statistic.getKey(), statistic.getValue()));
+		}
 		return dynamicStatistics;
 	}
 

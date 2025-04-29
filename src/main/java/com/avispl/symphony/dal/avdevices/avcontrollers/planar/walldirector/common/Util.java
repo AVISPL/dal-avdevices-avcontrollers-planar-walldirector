@@ -215,6 +215,9 @@ public class Util {
 		}
 
 		String[] values = value.split(Constant.SPACE);
+		if (values.length <= 11) {
+			return Collections.emptyMap();
+		}
 		Map<SourceVCINProperty, String> inputInfo = new EnumMap<>(SourceVCINProperty.class);
 		inputInfo.put(SourceVCINProperty.SOURCE_PRESENT, values[0].equals("TRUE") ? "YES" : "NO");
 		inputInfo.put(SourceVCINProperty.RESOLUTION, String.format("%sx%s %sHz", values[1], values[2], values[4]));

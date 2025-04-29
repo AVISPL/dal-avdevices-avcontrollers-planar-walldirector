@@ -48,7 +48,7 @@ public enum SourceVCINProperty {
 		return command;
 	}
 
-	public String getCommandContent(String... ids) {
-		return this.command.getName() + "(VC" + ids[0] + ".IN" + ids[1] + " ALL)" + Constant.GET_OPERATOR;
+	public String getCommandContent(String vcID, String inID) {
+		return this.command.getName() + "(VC" + vcID + ".IN" + inID + " ALL)" + Constant.GET_OPERATOR;
 	}
 }
