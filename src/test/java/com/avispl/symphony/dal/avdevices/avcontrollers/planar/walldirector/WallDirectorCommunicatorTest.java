@@ -75,10 +75,10 @@ class WallDirectorCommunicatorTest {
         systemPowerControl.setProperty(VWGeneralProperty.SYSTEM_REBOOT.getName());
         this.wallDirectorCommunicator.controlProperty(systemPowerControl);
 
-        this.delayExecution(WallDirectorCommunicator.REBOOT_TIME);
+        TimeUnit.MILLISECONDS.sleep(2 * 60 * 1000L);
         this.extendedStatistics = (ExtendedStatistics) this.wallDirectorCommunicator.getMultipleStatistics().get(0);
         Map<String, String> statistics = this.extendedStatistics.getStatistics();
-        if (!statistics.isEmpty()) {
+        if (statistics != null && !statistics.isEmpty()) {
             this.verifyStatistics(statistics);
         }
     }
@@ -130,14 +130,6 @@ class WallDirectorCommunicatorTest {
             for (Map.Entry<String, String> initStatistics : initGroup.entrySet()) {
                 Assertions.assertNotNull(initStatistics.getValue(), "Value is null with property: " + initStatistics.getKey());
             }
-        }
-    }
-
-    private void delayExecution(long milliseconds) {
-        try {
-            TimeUnit.MILLISECONDS.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 }

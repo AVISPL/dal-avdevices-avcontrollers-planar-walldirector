@@ -24,7 +24,7 @@ public class Constant {
 	public static final String SOURCE_NAME_FORMAT = "VC%s_IN%s";
 	public static final String GROUP_NAME_FORMAT = "%s - %s";
 	public static final String PROPERTY_NAME_FORMAT = "%s#%s";
-	public static final Pattern INVALID_RESPONSE_PATTERN = Pattern.compile("\\^NAK|ERR|\"\"|empty list");
+	public static final Pattern INVALID_RESPONSE_PATTERN = Pattern.compile("\\^NAK|ERR|empty list|time out");
 	public static final String PRESET_RECALL_PATTERN = ".*" + PRESET_RECALL_REGEX;
 
 	public static final String GET_OPERATOR = "?";
@@ -46,10 +46,14 @@ public class Constant {
 	public static final String PS_COMPONENT = "PS";
 	public static final String ZONE_COMPONENT = "ZONE";
 	public static final String TEMP_HISTORICAL = "#Temperature(C)";
-	public static final String NONE_OR_ERROR = "NoneOrError";
+	public static final String UNREACHABLE = "Unreachable";
+	public static final String NONE = "None";
+	public static final String ACK = "@ACK";
 
-	public static final String DEVICE_DISCONNECTED = "No valid response received after retries. The device may be unreachable or disconnected.";
+	public static final String DEVICE_DISCONNECTED = "No valid response received. The device may be unreachable or disconnected.";
 	public static final String COMMAND_FAILED = "Failed to send command ";
-	public static final String INVALID_RESPONSE = "Invalid response for command ";
+	public static final String COMMAND_UNREACHABLE = "Unreachable command: Failed to connect or execute command ";
+	public static final String COMMAND_INVALIDATED = "Invalid command: Invalid or unsupported command ";
+	public static final String RESPONSE_INVALIDATED = "Invalid response: Invalid response from command ";
 	public static final String UNKNOWN_CONTROLLER = "Unknown controllable property ";
 }

@@ -145,7 +145,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	/**
 	 * Duration to wait after rebooting (in milliseconds).
 	 */
-	public static final long REBOOT_TIME = 3 * 60 * 1000;
+	public static final long REBOOT_TIME = 3 * 60 * 1000L;
 
 	/**
 	 * Lock used to ensure thread-safe operations.
@@ -329,6 +329,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 	@Override
 	protected void internalDestroy() {
+		this.logger.info("Clearing internal data...");
 		this.ids = null;
 		this.vwGeneral = null;
 		this.vwPanels = null;
@@ -344,18 +345,29 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	}
 
 	/**
-	 * Initializes various data properties by fetching their respective values.
+	 * Initializes all required data by fetching from the device.
+	 * <p>
+	 * If all essential values (IDs, general, and network status) are unreachable,
+	 * marks the device as rebooted, disconnects, and throws a {@link ServiceNotAvailableException}.
+	 * </p>
+	 *
+	 * @throws Exception if data fetching fails or device is unreachable
 	 */
-	public void setupData() {
+	private void setupData() throws Exception {
 		this.ids = this.getIDsData();
 		this.vwGeneral = this.getGeneralData();
+		this.networkStatus = this.getNetworkStatusData();
+		if (Util.areValuesUnreachable(this.ids) && Util.areValuesUnreachable(this.vwGeneral) && Util.areValuesUnreachable(this.networkStatus)) {
+			this.isRebooted = true;
+			this.disconnect();
+			throw new ServiceNotAvailableException(Constant.DEVICE_DISCONNECTED);
+		}
 		this.vwPanels = this.getVWPanelsData();
 		this.powerSupplies = this.getPowerSuppliesData();
 		this.videoControllers = this.getVideoControllersData();
 		this.sourceVCINs = this.getSourceVCINsData();
 		this.zones = this.getZonesData();
 		this.presets = this.getPresetsData();
-		this.networkStatus = this.getNetworkStatusData();
 	}
 
 	/**
@@ -369,11 +381,8 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		Arrays.stream(IDProperty.values()).forEach(idProperty -> {
 			String response = this.send(idProperty.getCommandContent());
 
-			if (Util.validResponse(response)) {
-				String value = Util.getValueResponse(response);
-				if (value != null) {
-					idsData.put(idProperty, Arrays.asList(value.split(Constant.SPACE)));
-				}
+			if (!Util.invalidValue(response)) {
+				idsData.put(idProperty, Arrays.asList(response.split(Constant.SPACE)));
 			}
 		});
 		return idsData;
@@ -392,9 +401,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 					? Constant.EMPTY
 					: this.send(property.getCommandContent());
 
-			if (Util.validResponse(response)) {
-				dataMap.put(property, response);
-			}
+			dataMap.put(property, response);
 		});
 		return dataMap;
 	}
@@ -410,7 +417,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		}
 		Map<String, Map<VWPanelProperty, String>> panelsData = new HashMap<>();
 
-		this.ids.get(IDProperty.PN_IDS).parallelStream().forEach(panelID -> {
+		this.ids.get(IDProperty.PN_IDS).forEach(panelID -> {
 			String name = Constant.PANEL_COMPONENT + panelID;
 			Map<VWPanelProperty, String> properties = new EnumMap<>(VWPanelProperty.class);
 
@@ -418,9 +425,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 					.forEach(property -> {
 						String response = this.send(property.getCommandContent(panelID));
 
-						if (Util.validResponse(response)) {
-							properties.put(property, response);
-						}
+						properties.put(property, response);
 					});
 			panelsData.put(name, properties);
 		});
@@ -438,7 +443,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		}
 
 		Map<String, Map<PowerSupplyProperty, String>> powerSuppliesData = new HashMap<>();
-		this.ids.get(IDProperty.PS_IDS).parallelStream().forEach(panelID -> {
+		this.ids.get(IDProperty.PS_IDS).forEach(panelID -> {
 			String name = Constant.PS_COMPONENT + panelID;
 			Map<PowerSupplyProperty, String> properties = new EnumMap<>(PowerSupplyProperty.class);
 
@@ -447,9 +452,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 						? this.send(property.getCommandContent())
 						: this.send(property.getCommandContent(panelID));
 
-				if (Util.validResponse(response)) {
-					properties.put(property, response);
-				}
+				properties.put(property, response);
 			});
 			powerSuppliesData.put(name, properties);
 		});
@@ -463,19 +466,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 */
 	private Map<String, Map<VideoControllerProperty, String>> getVideoControllersData() {
 		if (CollectionUtils.isEmpty(this.ids.get(IDProperty.VC_IDS))) {
-			return new HashMap<>();
+			return Collections.emptyMap();
 		}
 
 		Map<String, Map<VideoControllerProperty, String>> videoControllersData = new HashMap<>();
-		this.ids.get(IDProperty.VC_IDS).parallelStream().forEach(videoControllerID -> {
+		this.ids.get(IDProperty.VC_IDS).forEach(videoControllerID -> {
 			Map<VideoControllerProperty, String> properties = new EnumMap<>(VideoControllerProperty.class);
 
 			Arrays.stream(VideoControllerProperty.values()).forEach(property -> {
 				String response = this.send(property.getCommandContent(videoControllerID));
 
-				if (Util.validResponse(response)) {
-					properties.put(property, response);
-				}
+				properties.put(property, response);
 			});
 			videoControllersData.put("VC" + videoControllerID, properties);
 		});
@@ -503,9 +504,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 						.forEach(property -> {
 							String response = this.send(property.getCommandContent(vcId, inID));
 
-							if (Util.validResponse(response)) {
-								properties.put(property, response);
-							}
+							properties.put(property, response);
 						});
 				sourcesData.put(vcIn, properties);
 			}
@@ -531,9 +530,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			Arrays.stream(ZoneProperty.values()).forEach(property -> {
 				String response = this.send(property.getCommandContent(zoneId));
 
-				if (Util.validResponse(response)) {
-					properties.put(property, response);
-				}
+				properties.put(property, response);
 			});
 			zonesData.put(propertyName, properties);
 		});
@@ -559,9 +556,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			} else {
 				String response = this.send(property.getCommandContent());
 
-				if (Util.validResponse(response)) {
-					presetsData.put(property.getName(), response);
-				}
+				presetsData.put(property.getName(), response);
 			}
 		});
 		return presetsData;
@@ -578,9 +573,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		Arrays.stream(NetworkStatusProperty.values()).forEach(property -> {
 			String response = this.send(property.getCommandContent());
 
-			if (Util.validResponse(response)) {
-				dataMap.put(property, response);
-			}
+			dataMap.put(property, response);
 		});
 		return dataMap;
 	}
@@ -808,8 +801,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	private List<AdvancedControllableProperty> getGeneralControllers() {
 		List<AdvancedControllableProperty> controllers = new ArrayList<>();
 		String powerStatus = Optional.ofNullable(this.vwGeneral.get(VWGeneralProperty.SYSTEM_POWER))
-				.map(s -> s.split(Constant.COLON_REGEX)).filter(arr -> arr.length > 1)
-				.map(arr -> "ON".equals(arr[1]) ? "1" : "0").orElse("0");
+				.map(v -> "ON".equals(v) ? "1" : "0").orElse("0");
 		controllers.add(this.generateControllableSwitch(VWGeneralProperty.SYSTEM_POWER.getName(), "On", "Off", powerStatus));
 		controllers.add(this.generateControllableButton(VWGeneralProperty.SYSTEM_REBOOT.getName(), "Reboot", "Rebooting", REBOOT_TIME));
 
@@ -848,6 +840,9 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 * @return a map of matching component statistics, or an empty map if none are found.
 	 */
 	private Map<String, String> getDynamicStatistics() {
+		if (CollectionUtils.isEmpty(this.historicalProperties)) {
+			return Collections.emptyMap();
+		}
 		Set<String> temperatures = this.historicalProperties.stream()
 				.filter(historicalProperty -> historicalProperty.endsWith(Constant.TEMP_HISTORICAL))
 				.collect(Collectors.toSet());
@@ -927,38 +922,49 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 */
 	private void sendControlCommand(Command type, String command) {
 		String response = this.send(command);
-		if (!Util.validResponse(response)) {
-			throw new NotImplementedException(Constant.INVALID_RESPONSE + type.getName());
+		if (Util.invalidValue(response)) {
+			throw new NotImplementedException(Constant.RESPONSE_INVALIDATED + type.getName());
 		}
 	}
 
 	/**
-	 * Sends a raw command string to the device and retrieves the ASCII response.
+	 * Sends an ASCII command to the device and returns the processed response.
 	 * <p>
-	 * Appends a CR character to the command before sending.
-	 * If the response indicates a disconnection (i.e., {@code [-1]} or empty response),
-	 * the channel is destroyed and a {@link ServiceNotAvailableException} is thrown.
-	 * </p>
-	 * <p>
-	 * Any other communication failure wraps and throws a {@link ResourceNotReachableException}.
+	 * Appends a CR character to the command before sending. Returns {@code UNREACHABLE} if response is {@code [-1]}.
+	 * Returns {@code ACK} if acknowledged. Returns {@code NONE} if response is invalid or lacks a colon.
+	 * Otherwise, returns the value after the colon.
 	 * </p>
 	 *
-	 * @param command the command string to send
-	 * @return the cleaned ASCII response, with CR characters removed
-	 * @throws ResourceNotReachableException if the device is unreachable or communication fails
+	 * @param command the command to send
+	 * @return processed response or a constant (ACK, NONE, UNREACHABLE)
+	 * @throws ResourceNotReachableException if communication with the device fails
 	 */
 	private String send(String command) {
 		try {
 			byte[] request = command.concat(Constant.CR).getBytes(StandardCharsets.US_ASCII);
 			byte[] response = super.send(request);
 			if (response.length == 1 && response[0] == -1) {
-				this.destroyChannel();
-				throw new ServiceNotAvailableException(Constant.DEVICE_DISCONNECTED);
+				this.logger.error(Constant.COMMAND_UNREACHABLE + command);
+				return Constant.UNREACHABLE;
 			}
-			return new String(response, StandardCharsets.US_ASCII).replace(Constant.CR, Constant.EMPTY);
+			String cleanedResponse = new String(response, StandardCharsets.US_ASCII)
+					.replace("\"", Constant.EMPTY)
+					.replace(Constant.CR, Constant.EMPTY);
+			if (cleanedResponse.contains(Constant.ACK)) {
+				return Constant.ACK;
+			}
+			if (Constant.INVALID_RESPONSE_PATTERN.matcher(cleanedResponse).find()) {
+				this.logger.warn(Constant.COMMAND_INVALIDATED + command);
+				return Constant.NONE;
+			}
+			String[] responseParts = cleanedResponse.split(Constant.COLON_REGEX, 2);
+			if (responseParts.length <= 1) {
+				this.logger.warn(Constant.RESPONSE_INVALIDATED + command);
+				return Constant.NONE;
+			}
+			return responseParts[1].isEmpty() ? Constant.NONE : responseParts[1];
 		} catch (Exception e) {
-			String message = e instanceof ServiceNotAvailableException ? e.getMessage() : Constant.COMMAND_FAILED + command;
-			throw new ResourceNotReachableException(message, e);
+			throw new ResourceNotReachableException(Constant.COMMAND_FAILED, e);
 		}
 	}
 }
