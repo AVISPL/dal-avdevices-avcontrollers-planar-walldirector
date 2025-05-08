@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
  */
-package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commands;
+package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types;
 
 /**
  * Represents a set of supported commands.
@@ -17,6 +17,7 @@ public enum Command {
 	VC_LIST("VC.LIST"),
 	ZONE_LIST("ZONE.LIST"),
 	PRESET_LIST("PRESET.LIST"),
+	WALL_PRODUCT("WALL.PRODUCT"),
 	WALL_MODEL("WALL.MODEL"),
 	MATRIX_COLUMNS("MATRIX.LAYOUT.COLUMNS"),
 	MATRIX_ROWS("MATRIX.LAYOUT.ROWS"),
@@ -50,6 +51,8 @@ public enum Command {
 	ZONE_EXPECTED_SOURCE_WIDTH("ZONE.EXPECTED.SOURCE.WIDTH"),
 	ZONE_ORDER("ZONE.ORDER"),
 	PRESET_ACTIVE("PRESET.ACTIVE"),
+	PRESET_CURRENT("PRESET.CURRENT"),
+	PRESET_NAME("PRESET.NAME"),
 	PRESET_RECALL("PRESET.RECALL"),
 	HOSTNAME("HOSTNAME"),
 	NETWORK_DHCP("NETWORK.DHCP"),

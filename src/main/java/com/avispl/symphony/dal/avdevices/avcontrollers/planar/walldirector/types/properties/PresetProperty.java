@@ -1,9 +1,9 @@
 /*
  *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
  */
-package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties;
+package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties;
 
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commands.Command;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.Command;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Constant;
 
 /**
@@ -14,7 +14,9 @@ import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commo
  */
 public enum PresetProperty {
 	ACTIVE_PRESET("ActivePreset", Command.PRESET_ACTIVE),
-	PRESET_RECALL("Preset%sRecall", Command.NONE);
+	ACTIVE_PRESET_NAME("ActivePresetName", Command.PRESET_CURRENT),
+	PRESET("Preset%s", Command.NONE),
+	PRESET_NAME("Preset%sName", Command.PRESET_NAME);
 
 	private final String name;
 	private final Command command;
@@ -44,5 +46,9 @@ public enum PresetProperty {
 
 	public String getCommandContent() {
 		return this.command.getName() + Constant.GET_OPERATOR;
+	}
+
+	public String getCommandContent(String presetID) {
+		return this.command.getName() + "(" + presetID + ")" + Constant.GET_OPERATOR;
 	}
 }

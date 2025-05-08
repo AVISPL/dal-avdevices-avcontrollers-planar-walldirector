@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,9 +17,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 
 import com.avispl.symphony.api.common.error.NotImplementedException;
 import com.avispl.symphony.api.common.error.ServiceNotAvailableException;
@@ -29,18 +30,19 @@ import com.avispl.symphony.api.dal.dto.monitor.ExtendedStatistics;
 import com.avispl.symphony.api.dal.dto.monitor.Statistics;
 import com.avispl.symphony.api.dal.error.ResourceNotReachableException;
 import com.avispl.symphony.api.dal.monitor.Monitorable;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commands.Command;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Constant;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Util;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.IDProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.NetworkStatusProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PowerSupplyProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PresetProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.SourceVCINProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWGeneralProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWPanelProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VideoControllerProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.ZoneProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.Command;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.IDProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PresetProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.SourceVCINProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWGeneralProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWPanelProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VideoControllerProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.ZoneProperty;
 import com.avispl.symphony.dal.communicator.SocketCommunicator;
 
 /**
@@ -145,7 +147,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	/**
 	 * Duration to wait after rebooting (in milliseconds).
 	 */
-	public static final long REBOOT_TIME = 3 * 60 * 1000L;
+	private static final long REBOOT_TIME = 3 * 60 * 1000L;
 
 	/**
 	 * Lock used to ensure thread-safe operations.
@@ -250,7 +252,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			}
 			this.setupData();
 			ExtendedStatistics extendedStatistics = new ExtendedStatistics();
-			Map<String, String> statistics = this.getVWGeneralProperties();
+			Map<String, String> statistics = new HashMap<>(this.getVWGeneralProperties());
 			statistics.putAll(this.getVWPanelProperties());
 			statistics.putAll(this.getPowerSupplyProperties());
 			statistics.putAll(this.getVideoControllerProperties());
@@ -264,7 +266,8 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 			extendedStatistics.setStatistics(statistics);
 			extendedStatistics.setControllableProperties(controllableProperties);
-			extendedStatistics.setDynamicStatistics(this.getDynamicStatistics());
+//		  Disabled temporarily due to the device not supporting the panel/power supply.
+//		 	extendedStatistics.setDynamicStatistics(this.getDynamicStatistics(statistics));
 			this.localExtendedStatistics = extendedStatistics;
 		} finally {
 			this.reentrantLock.unlock();
@@ -284,12 +287,12 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 					String command = String.format("%s=%s", Command.SYSTEM_POWER.getName(), value);
 
 					this.sendControlCommand(Command.SYSTEM_POWER, command);
-					this.localExtendedStatistics.getStatistics().put(property, value);
 					break;
 				}
 				case "SystemReboot": {
-					this.sendControlCommand(Command.SYSTEM_REBOOT, Command.SYSTEM_REBOOT.getName());
 					this.isRebooted = true;
+
+					this.sendControlCommand(Command.SYSTEM_REBOOT, Command.SYSTEM_REBOOT.getName());
 					this.destroyChannel();
 					break;
 				}
@@ -301,10 +304,6 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 					String command = String.format("%s(%s)", Command.PRESET_RECALL.getName(), presetID);
 
 					this.sendControlCommand(Command.PRESET_RECALL, command);
-					this.localExtendedStatistics.getStatistics().put(property, presetID);
-					this.localExtendedStatistics.getControllableProperties()
-							.removeIf(controllerProperty -> controllerProperty.getName().matches(Constant.PRESET_RECALL_PATTERN));
-					this.localExtendedStatistics.getControllableProperties().addAll(this.getPresetControllers());
 					break;
 				}
 			}
@@ -329,7 +328,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 	@Override
 	protected void internalDestroy() {
-		this.logger.info("Clearing internal data...");
+		this.logger.info("Internal destroy: Clearing internal data...");
 		this.ids = null;
 		this.vwGeneral = null;
 		this.vwPanels = null;
@@ -362,8 +361,9 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			this.disconnect();
 			throw new ServiceNotAvailableException(Constant.DEVICE_DISCONNECTED);
 		}
-		this.vwPanels = this.getVWPanelsData();
-		this.powerSupplies = this.getPowerSuppliesData();
+//		Disabled temporarily due to the device not supporting the panel/power supply.
+//		this.vwPanels = this.getVWPanelsData();
+//		this.powerSupplies = this.getPowerSuppliesData();
 		this.videoControllers = this.getVideoControllersData();
 		this.sourceVCINs = this.getSourceVCINsData();
 		this.zones = this.getZonesData();
@@ -389,21 +389,39 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	}
 
 	/**
-	 * Retrieves general data for all defined general properties.
+	 * Retrieves general data from the device by sending command requests based on each property.
+	 * <p>
+	 * The method initializes a map of general properties with their corresponding response values.
+	 * It differentiates between LCD and non-LCD products to determine whether to collect column/row
+	 * or width/height properties. Additionally, it skips sending commands for controllable properties,
+	 * returning an empty string instead.
+	 * </p>
 	 *
-	 * @return a map where the key is the general property name and the value is its corresponding data.
+	 * @return a map of {@link VWGeneralProperty} to their corresponding string responses.
 	 */
 	private Map<VWGeneralProperty, String> getGeneralData() {
-		Map<VWGeneralProperty, String> dataMap = new EnumMap<>(VWGeneralProperty.class);
-
-		Arrays.stream(VWGeneralProperty.values()).forEach(property -> {
-			String response = VWGeneralProperty.getOnlyControllableProperties().contains(property)
-					? Constant.EMPTY
-					: this.send(property.getCommandContent());
-
-			dataMap.put(property, response);
+		Map<VWGeneralProperty, String> generalData = new EnumMap<>(VWGeneralProperty.class);
+		generalData.put(VWGeneralProperty.PRODUCT, this.send(VWGeneralProperty.PRODUCT.getCommandContent()));
+		if (ProductFamily.isLCDProduct(generalData.get(VWGeneralProperty.PRODUCT))) {
+			generalData.put(VWGeneralProperty.COLUMNS, this.send(VWGeneralProperty.COLUMNS.getCommandContent()));
+			generalData.put(VWGeneralProperty.ROWS, this.send(VWGeneralProperty.ROWS.getCommandContent()));
+		} else {
+			generalData.put(VWGeneralProperty.WIDTH, this.send(VWGeneralProperty.WIDTH.getCommandContent()));
+			generalData.put(VWGeneralProperty.HEIGHT, this.send(VWGeneralProperty.HEIGHT.getCommandContent()));
+		}
+		Set<VWGeneralProperty> excludedProps = EnumSet.of(
+				VWGeneralProperty.PRODUCT,
+				VWGeneralProperty.COLUMNS, VWGeneralProperty.ROWS,
+				VWGeneralProperty.WIDTH, VWGeneralProperty.HEIGHT
+		);
+		Arrays.stream(VWGeneralProperty.values()).filter(p -> !excludedProps.contains(p))
+				.forEach(property -> {
+					String response = VWGeneralProperty.getOnlyControllableProperties().contains(property)
+							? Constant.EMPTY
+							: this.send(property.getCommandContent());
+					generalData.put(property, response);
 		});
-		return dataMap;
+		return generalData;
 	}
 
 	/**
@@ -411,7 +429,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 *
 	 * @return a map of panel name to its property values
 	 */
-	private Map<String, Map<VWPanelProperty, String>> getVWPanelsData() {
+	Map<String, Map<VWPanelProperty, String>> getVWPanelsData() {
 		if (CollectionUtils.isEmpty(this.ids.get(IDProperty.PN_IDS))) {
 			return new HashMap<>();
 		}
@@ -437,7 +455,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 *
 	 * @return a map of power supply name to its property values
 	 */
-	private Map<String, Map<PowerSupplyProperty, String>> getPowerSuppliesData() {
+	Map<String, Map<PowerSupplyProperty, String>> getPowerSuppliesData() {
 		if (CollectionUtils.isEmpty(this.ids.get(IDProperty.PS_IDS))) {
 			return Collections.emptyMap();
 		}
@@ -543,20 +561,26 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 * @return a map of preset name to its value or placeholder
 	 */
 	private Map<String, String> getPresetsData() {
-		if (CollectionUtils.isEmpty(this.ids.get(IDProperty.PRESET_IDS))) {
+		List<String> presetIds = this.ids.get(IDProperty.PRESET_IDS);
+		if (CollectionUtils.isEmpty(presetIds)) {
 			return Collections.emptyMap();
 		}
 
 		Map<String, String> presetsData = new HashMap<>();
 		Arrays.stream(PresetProperty.values()).forEach(property -> {
-			if (property.equals(PresetProperty.PRESET_RECALL)) {
-				for (String id : this.ids.get(IDProperty.PRESET_IDS)) {
-					presetsData.put(String.format(property.getName(), id), Constant.EMPTY);
+			switch (property) {
+				case PRESET: {
+					presetIds.forEach(id -> presetsData.put(String.format(property.getName(), id), Constant.EMPTY));
+					break;
 				}
-			} else {
-				String response = this.send(property.getCommandContent());
-
-				presetsData.put(property.getName(), response);
+				case PRESET_NAME: {
+					presetIds.forEach(id -> presetsData.put(String.format(property.getName(), id), this.send(property.getCommandContent(id))));
+					break;
+				}
+				default: {
+					presetsData.put(property.getName(), this.send(property.getCommandContent()));
+					break;
+				}
 			}
 		});
 		return presetsData;
@@ -751,7 +775,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.presets.forEach((property, value) -> {
 			String propertyName = String.format(Constant.PROPERTY_NAME_FORMAT, Constant.PRESET_GROUP, property);
 			String mappedProperty;
-			if (property.matches(Constant.PRESET_RECALL_REGEX)) {
+			if (property.matches(Constant.PRESET_REGEX)) {
 				String presetID = Util.extractPresetID(property);
 				mappedProperty = Util.isActivePreset(this.presets, presetID) ? "Active" : Constant.EMPTY;
 			} else {
@@ -827,7 +851,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			if (Util.isActivePreset(this.presets, presetID)) {
 				return;
 			}
-			String buttonName = Constant.PRESET_GROUP + "#" + String.format(PresetProperty.PRESET_RECALL.getName(), presetID);
+			String buttonName = Constant.PRESET_GROUP + "#" + String.format(PresetProperty.PRESET.getName(), presetID);
 
 			controllers.add(this.generateControllableButton(buttonName, "Recall", "Recalling", 0));
 		});
@@ -839,26 +863,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 *
 	 * @return a map of matching component statistics, or an empty map if none are found.
 	 */
-	private Map<String, String> getDynamicStatistics() {
-		if (CollectionUtils.isEmpty(this.historicalProperties)) {
-			return Collections.emptyMap();
-		}
-		Set<String> temperatures = this.historicalProperties.stream()
-				.filter(historicalProperty -> historicalProperty.endsWith(Constant.TEMP_HISTORICAL))
-				.collect(Collectors.toSet());
-		if (temperatures.isEmpty()) {
+	Map<String, String> getDynamicStatistics(Map<String, String> statistics) {
+		if (CollectionUtils.isEmpty(this.historicalProperties) || MapUtils.isEmpty(statistics)) {
 			return Collections.emptyMap();
 		}
 		Map<String, String> dynamicStatistics = new HashMap<>();
-		if (this.localExtendedStatistics.getStatistics() != null) {
-			this.localExtendedStatistics.getStatistics().entrySet().parallelStream()
-					.filter(statistic -> {
-						String[] components = statistic.getKey().split(" - ");
+		statistics.entrySet().parallelStream().filter(statistic -> {
+			String[] components = statistic.getKey().split(" - ");
 
-						return components.length > 1 && temperatures.contains(components[1]);
-					})
-					.forEach(statistic -> dynamicStatistics.put(statistic.getKey(), statistic.getValue()));
-		}
+			return components.length > 1 && this.historicalProperties.contains(components[1]);
+		}).forEach(statistic -> dynamicStatistics.put(statistic.getKey(), statistic.getValue()));
+
 		return dynamicStatistics;
 	}
 

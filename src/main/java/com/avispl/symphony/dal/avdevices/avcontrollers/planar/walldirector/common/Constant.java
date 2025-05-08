@@ -18,14 +18,15 @@ public class Constant {
 		// Prevent instantiation
 	}
 
-	public static final String PRESET_RECALL_REGEX = "Preset\\d+Recall";
+	public static final String PRESET_REGEX = "Preset\\d+";
+	public static final String PRESET_NAME_REGEX = "Preset\\d+Name";
 	public static final String COLON_REGEX = "\\:";
 	public static final String BETWEEN_CHARS_REGEX = "(?<=.)(?=.)";
 	public static final String SOURCE_NAME_FORMAT = "VC%s_IN%s";
 	public static final String GROUP_NAME_FORMAT = "%s - %s";
 	public static final String PROPERTY_NAME_FORMAT = "%s#%s";
 	public static final Pattern INVALID_RESPONSE_PATTERN = Pattern.compile("\\^NAK|ERR|empty list|time out");
-	public static final String PRESET_RECALL_PATTERN = ".*" + PRESET_RECALL_REGEX;
+	public static final String PRESET_RECALL_PATTERN = ".*" + PRESET_REGEX;
 
 	public static final String GET_OPERATOR = "?";
 	public static final String CR = "\r";

@@ -3,22 +3,23 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.NetworkStatusProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PowerSupplyProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PresetProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.SourceVCINProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWGeneralProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWPanelProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VideoControllerProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.ZoneProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PresetProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.SourceVCINProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWGeneralProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWPanelProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VideoControllerProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.ZoneProperty;
 
 /**
  * Utility class providing helper methods for response validation and parsing.
@@ -76,7 +77,12 @@ public class Util {
 			return null;
 		}
 		switch (property) {
+			case PRODUCT: {
+				return ProductFamily.getByFamily(response).getName();
+			}
 			case PANEL_MODEL:
+			case WIDTH:
+			case HEIGHT:
 			case COLUMNS:
 			case ROWS:
 			case BACKLIGHT_INTENSITY:
@@ -194,6 +200,8 @@ public class Util {
 			case FIRMWARE_VERSION: {
 				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
+			case INLET_AIR_TEMPERATURE:
+				return String.valueOf((int) Math.round(Double.parseDouble(response)));
 			default: {
 				return null;
 			}
@@ -256,20 +264,19 @@ public class Util {
 
 	/**
 	 * Maps a preset property from the response.
-	 * Formats the active preset value by replacing spaces with commas.
 	 *
 	 * @param property the property name
 	 * @param response the raw response string
 	 * @return the formatted value, or {@code null} if not applicable
 	 */
 	public static String mapToPresetProperty(String property, String response) {
-		PresetProperty mappedProperty = Arrays.stream(PresetProperty.values())
-				.filter(p -> p.getName().equals(property)).findFirst().orElse(null);
-		if (mappedProperty == null || response == null) {
+		if (Objects.equals(property, PresetProperty.ACTIVE_PRESET.getName())
+				|| Objects.equals(property, PresetProperty.ACTIVE_PRESET_NAME.getName())
+				|| property.matches(Constant.PRESET_NAME_REGEX)) {
+			return response;
+		} else {
 			return null;
 		}
-
-		return mappedProperty.equals(PresetProperty.ACTIVE_PRESET) ? response.replace(Constant.SPACE, ", ") : null;
 	}
 
 	/**
@@ -310,7 +317,7 @@ public class Util {
 	 * @return the extracted preset ID or an empty string if not found
 	 */
 	public static String extractPresetID(String preset) {
-		Pattern pattern = Pattern.compile(Constant.PRESET_RECALL_REGEX);
+		Pattern pattern = Pattern.compile(Constant.PRESET_REGEX);
 		Matcher matcher = pattern.matcher(preset);
 
 		return matcher.find() ? matcher.group().replaceAll("\\D+", Constant.EMPTY) : Constant.EMPTY;
