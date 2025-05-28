@@ -616,9 +616,11 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 		this.vwGeneral.entrySet().parallelStream().forEach(property -> {
 			String mappedValue = !property.getKey().equals(VWGeneralProperty.SYSTEM_REBOOT)
-					? Util.mapToVWGeneralProperty(property.getKey(), property.getValue())
+					? Util.mapToVWGeneralProperty(this.vwGeneral, property.getKey())
 					: Constant.EMPTY;
-			properties.put(property.getKey().getName(), mappedValue);
+			if (mappedValue != null) {
+				properties.put(property.getKey().getName(), mappedValue);
+			}
 		});
 		return properties;
 	}
@@ -646,7 +648,9 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 					String propertyName = String.format(Constant.PROPERTY_NAME_FORMAT, groupName, property.getName());
 					String mappedValue = Util.mapToVWPanelProperty(property, value);
 
-					properties.put(propertyName, mappedValue);
+					if (mappedValue != null) {
+						properties.put(propertyName, mappedValue);
+					}
 				}
 			});
 		});

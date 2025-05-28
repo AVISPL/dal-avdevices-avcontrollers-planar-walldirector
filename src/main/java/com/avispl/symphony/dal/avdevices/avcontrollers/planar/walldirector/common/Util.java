@@ -11,6 +11,8 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections.MapUtils;
+
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
@@ -66,21 +68,25 @@ public class Util {
 	}
 
 	/**
-	 * Maps a response string to a formatted VW general property value.
+	 * Maps a given {@link VWGeneralProperty} and its associated response string to a formatted value
+	 * based on property-specific logic.
 	 *
-	 * @param property the property name
-	 * @param response the response string
-	 * @return the formatted property value, or null if not applicable
+	 * @param properties a map of {@link VWGeneralProperty} to their response string values
+	 * @param property the specific property to map
+	 * @return the formatted value for the property, or {@code null} if the property is not applicable or input is invalid
 	 */
-	public static String mapToVWGeneralProperty(VWGeneralProperty property, String response) {
-		if (property == null || response == null) {
+	public static String mapToVWGeneralProperty(Map<VWGeneralProperty, String> properties, VWGeneralProperty property) {
+		if (MapUtils.isEmpty(properties) || property == null) {
 			return null;
 		}
+		String response = properties.get(property);
 		switch (property) {
 			case PRODUCT: {
 				return ProductFamily.getByFamily(response).getName();
 			}
-			case PANEL_MODEL:
+			case PANEL_MODEL: {
+				return ProductFamily.hasModel(properties.get(VWGeneralProperty.PRODUCT), response) ? response : Constant.NONE;
+			}
 			case WIDTH:
 			case HEIGHT:
 			case COLUMNS:
