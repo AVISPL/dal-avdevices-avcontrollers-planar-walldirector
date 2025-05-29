@@ -1,9 +1,9 @@
 /*
  *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
  */
-package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties;
+package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties;
 
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commands.Command;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.Command;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Constant;
 
 /**

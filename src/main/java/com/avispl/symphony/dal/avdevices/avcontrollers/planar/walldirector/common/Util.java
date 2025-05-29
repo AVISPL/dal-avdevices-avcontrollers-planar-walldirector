@@ -3,21 +3,25 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.NetworkStatusProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PowerSupplyProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PresetProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.SourceVCINProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWGeneralProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWPanelProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VideoControllerProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.ZoneProperty;
+import org.apache.commons.collections.MapUtils;
+
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PresetProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.SourceVCINProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWGeneralProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWPanelProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VideoControllerProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.ZoneProperty;
 
 /**
  * Utility class providing helper methods for response validation and parsing.
@@ -33,58 +37,69 @@ public class Util {
 	}
 
 	/**
-	 * Validates the response string by checking against an invalid pattern.
+	 * Checks if all values in the map are "unreachable" (either as "unreachable" strings, empty strings
+	 * which are controllable, or lists of "unreachable" strings).
 	 *
-	 * @param response the response string to validate
-	 * @return true if the response is valid; false otherwise
+	 * @param data the map to check
+	 * @param <K> the type of keys in the map
+	 * @param <V> the type of values in the map
+	 * @return {@code true} if all values are unreachable; {@code false} otherwise
 	 */
-	public static boolean validResponse(String response) {
-		return response != null && !Constant.INVALID_RESPONSE_PATTERN.matcher(response).find();
+	public static <K, V> boolean areValuesUnreachable(Map<K, V> data) {
+		return data.values().stream().allMatch(v -> {
+			if (v instanceof String) {
+				return ((String) v).isEmpty() || Constant.UNREACHABLE.equals(v);
+			}
+			if (v instanceof List<?>) {
+				return ((List<?>) v).stream().allMatch(Constant.UNREACHABLE::equals);
+			}
+			return false;
+		});
 	}
 
 	/**
-	 * Extracts the value part from a response string.
+	 * Checks if the given string value is considered invalid.
 	 *
-	 * @param response the full response string
-	 * @return the extracted value or null if not available
+	 * @param value the string value to be checked
+	 * @return {@code true} if the value is either {@link Constant#NONE} or {@link Constant#UNREACHABLE}, otherwise {@code false}
 	 */
-	public static String getValueResponse(String response) {
-		if (response == null || response.equals(Constant.NONE_OR_ERROR)) {
-			return null;
-		}
-		String[] parts = response.split(Constant.COLON_REGEX, 2);
-		if (parts.length <= 1) {
-			return null;
-		}
-
-		return parts[1].isEmpty() ? null : parts[1].replace("\"", Constant.EMPTY);
+	public static boolean invalidValue(String value) {
+		return value.equals(Constant.NONE) || value.equals(Constant.UNREACHABLE);
 	}
 
 	/**
-	 * Maps a response string to a formatted VW general property value.
+	 * Maps a given {@link VWGeneralProperty} and its associated response string to a formatted value
+	 * based on property-specific logic.
 	 *
-	 * @param property the property name
-	 * @param response the response string
-	 * @return the formatted property value, or null if not applicable
+	 * @param properties a map of {@link VWGeneralProperty} to their response string values
+	 * @param property the specific property to map
+	 * @return the formatted value for the property, or {@code null} if the property is not applicable or input is invalid
 	 */
-	public static String mapToVWGeneralProperty(VWGeneralProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+	public static String mapToVWGeneralProperty(Map<VWGeneralProperty, String> properties, VWGeneralProperty property) {
+		if (MapUtils.isEmpty(properties) || property == null) {
 			return null;
 		}
+		String response = properties.get(property);
 		switch (property) {
-			case PANEL_MODEL:
+			case PRODUCT: {
+				return ProductFamily.getByFamily(response).getName();
+			}
+			case PANEL_MODEL: {
+				return ProductFamily.hasModel(properties.get(VWGeneralProperty.PRODUCT), response) ? response : Constant.NONE;
+			}
+			case WIDTH:
+			case HEIGHT:
 			case COLUMNS:
 			case ROWS:
 			case BACKLIGHT_INTENSITY:
 			case BACKLIGHT_CONTROL_MODE: {
-				return value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
 			case SYSTEM_POWER: {
-				return value.equals("On") ? "1" : "0";
+				return response.equals("ON") ? "1" : "0";
 			}
 			case STANDBY_MODE: {
-				return toCapitalizationCase(value);
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : toCapitalizationCase(response);
 			}
 			default: {
 				return null;
@@ -100,8 +115,7 @@ public class Util {
 	 * @return the formatted panel property value, or null if not applicable
 	 */
 	public static String mapToVWPanelProperty(VWPanelProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+		if (property == null || response == null) {
 			return null;
 		}
 		switch (property) {
@@ -114,7 +128,7 @@ public class Util {
 			case CABLE_LENGTH:
 			case SIGNAL_QUALITY:
 			case VC_OUTPUT: {
-				return value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
 			default: {
 				return null;
@@ -130,11 +144,10 @@ public class Util {
 	 * @return a map with PANEL_POSITION_COLUMN and PANEL_POSITION_ROW, or empty map if not applicable
 	 */
 	public static Map<VWPanelProperty, String> mapToVWPanelProperties(VWPanelProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property != VWPanelProperty.PANEL_POSITION || value == null) {
+		if (property != VWPanelProperty.PANEL_POSITION || response == null) {
 			return Collections.emptyMap();
 		}
-		String[] values = value.split(Constant.SPACE, 2);
+		String[] values = response.split(Constant.SPACE, 2);
 		if (values.length <= 1) {
 			return Collections.emptyMap();
 		}
@@ -153,8 +166,7 @@ public class Util {
 	 * @return the formatted power supply property value, or null if not applicable
 	 */
 	public static String mapToPowerSupplyProperty(PowerSupplyProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+		if (property == null || response == null) {
 			return null;
 		}
 		switch (property) {
@@ -167,7 +179,7 @@ public class Util {
 			case MODULE_4_STATUS:
 			case TEMPERATURE:
 			case FIRMWARE_VERSION: {
-				return value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
 			default: {
 				return null;
@@ -183,8 +195,7 @@ public class Util {
 	 * @return the formatted video controller property value, or null if not applicable
 	 */
 	public static String mapToVideoControllerProperty(VideoControllerProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+		if (property == null || response == null) {
 			return null;
 		}
 		switch (property) {
@@ -193,8 +204,10 @@ public class Util {
 			case SERIAL_NUMBER:
 			case TEMPERATURE_AND_FAN_STATUS:
 			case FIRMWARE_VERSION: {
-				return value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
+			case INLET_AIR_TEMPERATURE:
+				return String.valueOf((int) Math.round(Double.parseDouble(response)));
 			default: {
 				return null;
 			}
@@ -209,15 +222,14 @@ public class Util {
 	 * @return the formatted value as a map for INPUT_INFO, or empty map if not applicable
 	 */
 	public static Map<SourceVCINProperty, String> mapToSourceVCINProperties(SourceVCINProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property != SourceVCINProperty.INPUT_INFO || value == null) {
+		if (property != SourceVCINProperty.INPUT_INFO || response == null) {
 			return Collections.emptyMap();
 		}
-
-		String[] values = value.split(Constant.SPACE);
+		String[] values = response.split(Constant.SPACE);
 		if (values.length <= 11) {
 			return Collections.emptyMap();
 		}
+
 		Map<SourceVCINProperty, String> inputInfo = new EnumMap<>(SourceVCINProperty.class);
 		inputInfo.put(SourceVCINProperty.SOURCE_PRESENT, values[0].equals("TRUE") ? "YES" : "NO");
 		inputInfo.put(SourceVCINProperty.RESOLUTION, String.format("%sx%s %sHz", values[1], values[2], values[4]));
@@ -238,8 +250,7 @@ public class Util {
 	 * @return the mapped value, or null if not applicable
 	 */
 	public static String mapToZoneProperty(ZoneProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+		if (property == null || response == null) {
 			return null;
 		}
 		switch (property) {
@@ -249,7 +260,7 @@ public class Util {
 			case EXPECTED_SOURCE_HEIGHT:
 			case EXPECTED_SOURCE_WIDTH:
 			case ORDER: {
-				return value.isEmpty() ? null : value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
 			default: {
 				return null;
@@ -259,23 +270,19 @@ public class Util {
 
 	/**
 	 * Maps a preset property from the response.
-	 * Formats the active preset value by replacing spaces with commas.
 	 *
 	 * @param property the property name
 	 * @param response the raw response string
 	 * @return the formatted value, or {@code null} if not applicable
 	 */
 	public static String mapToPresetProperty(String property, String response) {
-		PresetProperty mappedProperty = Arrays.stream(PresetProperty.values())
-				.filter(p -> p.getName().equals(property)).findFirst().orElse(null);
-		String value = getValueResponse(response);
-		if (mappedProperty == null || value == null) {
+		if (Objects.equals(property, PresetProperty.ACTIVE_PRESET.getName())
+				|| Objects.equals(property, PresetProperty.ACTIVE_PRESET_NAME.getName())
+				|| property.matches(Constant.PRESET_NAME_REGEX)) {
+			return response;
+		} else {
 			return null;
 		}
-
-		return mappedProperty.equals(PresetProperty.ACTIVE_PRESET)
-				? value.replace(Constant.SPACE, ", ")
-				: null;
 	}
 
 	/**
@@ -287,8 +294,7 @@ public class Util {
 	 * @return the formatted value, or {@code null} if invalid
 	 */
 	public static String mapToNetworkStatusProperty(NetworkStatusProperty property, String response) {
-		String value = getValueResponse(response);
-		if (property == null || value == null) {
+		if (property == null || response == null) {
 			return null;
 		}
 		switch (property) {
@@ -299,10 +305,10 @@ public class Util {
 			case DNS_SERVER_1:
 			case DNS_SERVER_2:
 			case MAC_ADDRESS: {
-				return value;
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : response;
 			}
 			case DHCP_ENABLED: {
-				return toCapitalizationCase(value);
+				return response.equals(Constant.UNREACHABLE) ? Constant.NONE : toCapitalizationCase(response);
 			}
 			default: {
 				return null;
@@ -317,7 +323,7 @@ public class Util {
 	 * @return the extracted preset ID or an empty string if not found
 	 */
 	public static String extractPresetID(String preset) {
-		Pattern pattern = Pattern.compile(Constant.PRESET_RECALL_REGEX);
+		Pattern pattern = Pattern.compile(Constant.PRESET_REGEX);
 		Matcher matcher = pattern.matcher(preset);
 
 		return matcher.find() ? matcher.group().replaceAll("\\D+", Constant.EMPTY) : Constant.EMPTY;
@@ -338,7 +344,7 @@ public class Util {
 		if (presets == null) {
 			return false;
 		}
-		String value = getValueResponse(presets.get(PresetProperty.ACTIVE_PRESET.getName()));
+		String value = presets.get(PresetProperty.ACTIVE_PRESET.getName());
 
 		return value != null && value.equals(presetID);
 	}

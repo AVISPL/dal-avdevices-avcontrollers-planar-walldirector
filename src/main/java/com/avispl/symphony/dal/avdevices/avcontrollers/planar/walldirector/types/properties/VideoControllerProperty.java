@@ -1,9 +1,9 @@
 /*
  *  Copyright (c) 2025 AVI-SPL, Inc. All Rights Reserved.
  */
-package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties;
+package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties;
 
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commands.Command;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.Command;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Constant;
 
 /**
@@ -17,7 +17,8 @@ public enum VideoControllerProperty {
 	MODEL("Model", Command.MODEL_NAME),
 	SERIAL_NUMBER("SerialNumber", Command.SERIAL_NUMBER),
 	TEMPERATURE_AND_FAN_STATUS("Temperature&FanStatus", Command.FAN_STATUS),
-	FIRMWARE_VERSION("FirmwareVersion", Command.FIRMWARE_VERSION);
+	FIRMWARE_VERSION("FirmwareVersion", Command.FIRMWARE_VERSION),
+	INLET_AIR_TEMPERATURE("InletAirTemperature(C)", Command.TEMPERATURE);
 
 	private final String name;
 	private final Command command;

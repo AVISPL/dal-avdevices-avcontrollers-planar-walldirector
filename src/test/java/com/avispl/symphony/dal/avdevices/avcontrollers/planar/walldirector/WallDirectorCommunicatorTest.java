@@ -3,8 +3,7 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -17,8 +16,8 @@ import org.junit.jupiter.api.Test;
 import com.avispl.symphony.api.dal.dto.control.ControllableProperty;
 import com.avispl.symphony.api.dal.dto.monitor.ExtendedStatistics;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Constant;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.PresetProperty;
-import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.properties.VWGeneralProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PresetProperty;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.VWGeneralProperty;
 
 /**
  * WallDirectorCommunicatorTest class for test the methods of Planar WallDirector
@@ -49,6 +48,7 @@ class WallDirectorCommunicatorTest {
 
     @Test
     void testGetMultipleStatistic() throws Exception {
+        this.wallDirectorCommunicator.setHistoricalProperties("VC5#Temperature(C), PANEL1#Temperature(C), PS1#Temperature(C)");
         this.extendedStatistics = (ExtendedStatistics) this.wallDirectorCommunicator.getMultipleStatistics().get(0);
 
         Map<String, String> statistics = this.extendedStatistics.getStatistics();
@@ -75,10 +75,10 @@ class WallDirectorCommunicatorTest {
         systemPowerControl.setProperty(VWGeneralProperty.SYSTEM_REBOOT.getName());
         this.wallDirectorCommunicator.controlProperty(systemPowerControl);
 
-        this.delayExecution(WallDirectorCommunicator.REBOOT_TIME);
+        TimeUnit.MILLISECONDS.sleep(2 * 60 * 1000L);
         this.extendedStatistics = (ExtendedStatistics) this.wallDirectorCommunicator.getMultipleStatistics().get(0);
         Map<String, String> statistics = this.extendedStatistics.getStatistics();
-        if (!statistics.isEmpty()) {
+        if (statistics != null && !statistics.isEmpty()) {
             this.verifyStatistics(statistics);
         }
     }
@@ -116,28 +116,20 @@ class WallDirectorCommunicatorTest {
     }
 
     private void verifyStatistics(Map<String, String> statistics) {
-        List<Map<String, String>> groups = new ArrayList<>();
-        groups.add(this.filterGroupStatistics(statistics, null));
-        groups.add(this.filterGroupStatistics(statistics, Constant.VW_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.PS_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.VC_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.SOURCE_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.ZONE_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.PRESET_GROUP));
-        groups.add(this.filterGroupStatistics(statistics, Constant.NETWORK_STATUS_GROUP));
+        Map<String, Map<String, String>> groups = new LinkedHashMap<>();
+        groups.put("General", this.filterGroupStatistics(statistics, null));
+        groups.put(Constant.VW_GROUP, this.filterGroupStatistics(statistics, Constant.VW_GROUP));
+        groups.put(Constant.PS_GROUP, this.filterGroupStatistics(statistics, Constant.PS_GROUP));
+        groups.put(Constant.VC_GROUP, this.filterGroupStatistics(statistics, Constant.VC_GROUP));
+        groups.put(Constant.SOURCE_GROUP, this.filterGroupStatistics(statistics, Constant.SOURCE_GROUP));
+        groups.put(Constant.ZONE_GROUP, this.filterGroupStatistics(statistics, Constant.ZONE_GROUP));
+        groups.put(Constant.PRESET_GROUP, this.filterGroupStatistics(statistics, Constant.PRESET_GROUP));
+        groups.put(Constant.NETWORK_STATUS_GROUP, this.filterGroupStatistics(statistics, Constant.NETWORK_STATUS_GROUP));
 
-        for (Map<String, String> initGroup : groups) {
+        for (Map<String, String> initGroup : groups.values()) {
             for (Map.Entry<String, String> initStatistics : initGroup.entrySet()) {
                 Assertions.assertNotNull(initStatistics.getValue(), "Value is null with property: " + initStatistics.getKey());
             }
-        }
-    }
-
-    private void delayExecution(long milliseconds) {
-        try {
-            TimeUnit.MILLISECONDS.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 }
