@@ -4,6 +4,7 @@
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystemNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -15,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -34,6 +36,7 @@ import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.commo
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common.Util;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.Command;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.AdapterMetadataProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.IDProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
@@ -153,6 +156,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 * Lock used to ensure thread-safe operations.
 	 */
 	private final ReentrantLock reentrantLock;
+	/**
+	 * Holds the application configuration properties loaded from the {@code application.properties} file.
+	 */
+	private final Properties applicationProperties;
 
 	/**
 	 * Store of extended statistics object.
@@ -205,6 +212,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 	public WallDirectorCommunicator() {
 		this.reentrantLock = new ReentrantLock();
+		this.applicationProperties = new Properties();
 
 		this.localExtendedStatistics = new ExtendedStatistics();
 		this.ids = new EnumMap<>(IDProperty.class);
@@ -219,6 +227,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.historicalProperties = new HashSet<>();
 		this.isRebooted = false;
 
+		this.loadProperties(this.applicationProperties);
 		this.setCommandSuccessList(Collections.singletonList(Constant.CR));
 		this.setCommandErrorList(Collections.singletonList(Constant.CR));
 	}
@@ -253,6 +262,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 			this.setupData();
 			ExtendedStatistics extendedStatistics = new ExtendedStatistics();
 			Map<String, String> statistics = new HashMap<>(this.getVWGeneralProperties());
+			statistics.putAll(this.getAdapterMetadataProperties());
 			statistics.putAll(this.getVWPanelProperties());
 			statistics.putAll(this.getPowerSupplyProperties());
 			statistics.putAll(this.getVideoControllerProperties());
@@ -341,6 +351,20 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.historicalProperties = null;
 		this.localExtendedStatistics = null;
 		super.internalDestroy();
+	}
+
+	/**
+	 * Loads properties from the {@code application.properties} file into the provided {@link Properties} object.
+	 *
+	 * @param properties The {@link Properties} object to load the configuration into.
+	 * @throws ResourceNotReachableException if the properties file cannot be loaded.
+	 */
+	private void loadProperties(Properties properties) {
+		try {
+			properties.load(getClass().getResourceAsStream("/application.properties"));
+		} catch (Exception e) {
+			throw new FileSystemNotFoundException(Constant.UNABLE_TO_READ_PROPERTIES_FILE);
+		}
 	}
 
 	/**
@@ -622,6 +646,21 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 				properties.put(property.getKey().getName(), mappedValue);
 			}
 		});
+		return properties;
+	}
+
+	/**
+	 * Retrieves properties related to Adapter, mapping them using a utility method.
+	 *
+	 * @return A map of Adapter metadata properties with the property names as keys and their corresponding mapped values as values.
+	 */
+	private Map<String, String> getAdapterMetadataProperties() {
+		Map<String, String> properties = new HashMap<>();
+		Arrays.stream(AdapterMetadataProperty.values()).forEach(property -> {
+			String propertyName = String.format(Constant.PROPERTY_NAME_FORMAT, Constant.ADAPTER_METADATA_GROUP, property.getName());
+			properties.put(propertyName, Util.mapToAdapterMetadataProperty(property, this.applicationProperties));
+		});
+
 		return properties;
 	}
 
