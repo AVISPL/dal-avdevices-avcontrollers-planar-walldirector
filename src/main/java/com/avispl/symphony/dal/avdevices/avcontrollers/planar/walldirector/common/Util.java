@@ -3,17 +3,22 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections.MapUtils;
 
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
+import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.AdapterMetadataProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.NetworkStatusProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PowerSupplyProperty;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.PresetProperty;
@@ -65,6 +70,29 @@ public class Util {
 	 */
 	public static boolean invalidValue(String value) {
 		return value.equals(Constant.NONE) || value.equals(Constant.UNREACHABLE);
+	}
+
+	/**
+	 * Maps the given {@link AdapterMetadataProperty} to its value using the provided properties.
+	 *
+	 * @param property the property to map
+	 * @param applicationProperties the source of property values
+	 * @return the formatted value, or {@code Constant.NONE} if not available
+	 */
+	public static String mapToAdapterMetadataProperty(AdapterMetadataProperty property, Properties applicationProperties) {
+		String adapterBuildDate = applicationProperties.getProperty("adapter.build.date");
+		String adapterVersion = applicationProperties.getProperty("adapter.version");
+
+		switch (property) {
+			case ADAPTER_BUILD_DATE:
+				return adapterBuildDate == null ? Constant.NONE : adapterBuildDate;
+			case ADAPTER_UPTIME:
+				return adapterBuildDate == null ? Constant.NONE : formatElapsedTime(adapterBuildDate);
+			case ADAPTER_VERSION:
+				return adapterVersion == null ? Constant.NONE : adapterVersion;
+			default:
+				return Constant.NONE;
+		}
 	}
 
 	/**
@@ -378,4 +406,34 @@ public class Util {
 
 		return (value == Math.floor(value)) ? String.format("%.0f", value) : String.format("%.2f", value);
 	}
+
+	/**
+	 * Returns the elapsed time between now and the given date-time string.
+	 *
+	 * @param adapterBuildDate the date-time in format "yyyy-MM-dd HH:mm"
+	 * @return formatted string like "X day(s) Y hour(s) Z minute(s) W second(s)"
+	 */
+	private static String formatElapsedTime(String adapterBuildDate) {
+		LocalDateTime target = LocalDateTime.parse(adapterBuildDate, DateTimeFormatter.ofPattern(Constant.DATE_TIME_PATTERN));
+		Duration duration = Duration.between(LocalDateTime.now(), target).abs();
+		long totalSeconds = duration.getSeconds();
+		long days = totalSeconds / (24 * 3600);
+		long hours = totalSeconds % (24 * 3600) / 3600;
+		long minutes = totalSeconds % 3600 / 60;
+		long seconds = totalSeconds % 60;
+		StringBuilder rs = new StringBuilder();
+		if (days > 0) {
+			rs.append(days).append(" day(s) ");
+		}
+		if (hours > 0) {
+			rs.append(hours).append(" hour(s) ");
+		}
+		if (minutes > 0) {
+			rs.append(minutes).append(" minute(s) ");
+		}
+		rs.append(seconds).append(" second(s)");
+
+		return rs.toString().trim();
+	}
+
 }

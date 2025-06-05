@@ -118,6 +118,7 @@ class WallDirectorCommunicatorTest {
     private void verifyStatistics(Map<String, String> statistics) {
         Map<String, Map<String, String>> groups = new LinkedHashMap<>();
         groups.put("General", this.filterGroupStatistics(statistics, null));
+        groups.put(Constant.ADAPTER_METADATA_GROUP, this.filterGroupStatistics(statistics, Constant.ADAPTER_METADATA_GROUP));
         groups.put(Constant.VW_GROUP, this.filterGroupStatistics(statistics, Constant.VW_GROUP));
         groups.put(Constant.PS_GROUP, this.filterGroupStatistics(statistics, Constant.PS_GROUP));
         groups.put(Constant.VC_GROUP, this.filterGroupStatistics(statistics, Constant.VC_GROUP));

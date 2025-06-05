@@ -9,11 +9,23 @@
   <version>1.0.0</version>
   <properties>
     <symphonyApiVersion>RELEASE</symphonyApiVersion>
-    <timestamp>${maven.build.timestamp}</timestamp>
+    <maven.build.timestamp>${maven.build.timestamp}</maven.build.timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
   </properties>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -90,12 +102,6 @@
       </plugin>
       <!-- Test adding dependency -->
     </plugins>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-    </resources>
   </build>
   <packaging>jar</packaging>
   <dependencies>
@@ -143,25 +149,25 @@
     <dependency>
       <groupId>org.snmp4j</groupId>
       <artifactId>snmp4j</artifactId>
-      <version>3.7.0</version>
+      <version>3.7.7</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-web</artifactId>
-      <version>5.2.22.RELEASE</version>
+      <version>5.2.25.RELEASE</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-expression</artifactId>
-      <version>5.2.22.RELEASE</version>
+      <version>5.2.25.RELEASE</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-context-support</artifactId>
-      <version>5.2.22.RELEASE</version>
+      <version>5.2.25.RELEASE</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -215,7 +221,7 @@
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-test</artifactId>
-      <version>5.1.9.RELEASE</version>
+      <version>5.2.25.RELEASE</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
