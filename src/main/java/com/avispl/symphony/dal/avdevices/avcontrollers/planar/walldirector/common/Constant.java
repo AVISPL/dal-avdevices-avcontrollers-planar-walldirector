@@ -28,6 +28,7 @@ public class Constant {
 	public static final Pattern INVALID_RESPONSE_PATTERN = Pattern.compile("\\^NAK|ERR|empty list|time out");
 	public static final String PRESET_RECALL_PATTERN = ".*" + PRESET_REGEX;
 	public static final String DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm";
+	public static final String UTC_PATTERN = "yyyy-MM-dd'T'HH:mm:ssX";
 
 	public static final String GET_OPERATOR = "?";
 	public static final String CR = "\r";
@@ -57,6 +58,8 @@ public class Constant {
 	public static final String UNABLE_TO_READ_PROPERTIES_FILE = "Unable to load properties file: application.properties";
 	public static final String DEVICE_DISCONNECTED = "No valid response received. The device may be unreachable or disconnected.";
 	public static final String COMMAND_FAILED = "Failed to send command ";
+	public static final String FORMAT_DATE_TIME_FAILED = "Failed to formatDatetime with timestamp: ";
+	public static final String FORMAT_ELAPSED_TIME_FAILED = "Failed to formatElapsedTime with timestamp: ";
 	public static final String COMMAND_UNREACHABLE = "Unreachable command: Failed to connect or execute command ";
 	public static final String COMMAND_INVALIDATED = "Invalid command: Invalid or unsupported command ";
 	public static final String RESPONSE_INVALIDATED = "Invalid response: Invalid response from command ";

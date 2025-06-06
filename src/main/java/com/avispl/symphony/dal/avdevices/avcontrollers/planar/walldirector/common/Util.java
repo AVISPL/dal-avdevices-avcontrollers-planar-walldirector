@@ -5,6 +5,8 @@ package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.comm
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -16,6 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.AdapterMetadataProperty;
@@ -37,6 +41,8 @@ import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types
  * @since 1.0.0
  */
 public class Util {
+	private static final Log LOGGER = LogFactory.getLog(Util.class);
+
 	private Util() {
 		// Prevent instantiation
 	}
@@ -85,7 +91,7 @@ public class Util {
 
 		switch (property) {
 			case ADAPTER_BUILD_DATE:
-				return adapterBuildDate == null ? Constant.NONE : adapterBuildDate;
+				return adapterBuildDate == null ? Constant.NONE : formatDatetime(adapterBuildDate);
 			case ADAPTER_UPTIME:
 				return adapterBuildDate == null ? Constant.NONE : formatElapsedTime(adapterBuildDate);
 			case ADAPTER_VERSION:
@@ -408,32 +414,62 @@ public class Util {
 	}
 
 	/**
-	 * Returns the elapsed time between now and the given date-time string.
+	 * Converts an ISO-8601 timestamp string (with zone information, e.g., "Z" or "+07:00")
+	 * to a formatted date-time string using the system default time zone.
+	 * The output format is defined by {@link Constant#DATE_TIME_PATTERN}.
 	 *
-	 * @param adapterBuildDate the date-time in format "yyyy-MM-dd HH:mm"
-	 * @return formatted string like "X day(s) Y hour(s) Z minute(s) W second(s)"
+	 * <p>If the input string is null or empty, {@code null} is returned.</p>
+	 *
+	 * @param timestamp the ISO-8601 formatted timestamp string (e.g., "2025-06-05T09:32:19Z" or "2025-06-05T09:32:19+07:00")
+	 * @return a formatted date-time string based on {@link Constant#DATE_TIME_PATTERN}, or {@link Constant#NONE} if input is invalid
 	 */
-	private static String formatElapsedTime(String adapterBuildDate) {
-		LocalDateTime target = LocalDateTime.parse(adapterBuildDate, DateTimeFormatter.ofPattern(Constant.DATE_TIME_PATTERN));
-		Duration duration = Duration.between(LocalDateTime.now(), target).abs();
-		long totalSeconds = duration.getSeconds();
-		long days = totalSeconds / (24 * 3600);
-		long hours = totalSeconds % (24 * 3600) / 3600;
-		long minutes = totalSeconds % 3600 / 60;
-		long seconds = totalSeconds % 60;
-		StringBuilder rs = new StringBuilder();
-		if (days > 0) {
-			rs.append(days).append(" day(s) ");
-		}
-		if (hours > 0) {
-			rs.append(hours).append(" hour(s) ");
-		}
-		if (minutes > 0) {
-			rs.append(minutes).append(" minute(s) ");
-		}
-		rs.append(seconds).append(" second(s)");
+	private static String formatDatetime(String timestamp) {
+		try {
+			ZonedDateTime zdt = ZonedDateTime.parse(timestamp).toInstant().atZone(ZoneId.systemDefault());
+			LocalDateTime localDateTime = zdt.toLocalDateTime();
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constant.DATE_TIME_PATTERN);
 
-		return rs.toString().trim();
+			return localDateTime.format(formatter);
+		} catch (Exception e) {
+			LOGGER.error(Constant.FORMAT_DATE_TIME_FAILED + timestamp, e);
+			return Constant.NONE;
+		}
 	}
 
+	/**
+	 * Returns the elapsed time between the current system time and the given ISO-8601 date-time string.
+	 * <p>
+	 * The returned string represents the absolute duration in the format:
+	 * "X day(s) Y hour(s) Z minute(s) W second(s)", omitting any zero-value units except seconds.
+	 *
+	 * @param timestamp the ISO-8601 timestamp string (e.g., "2024-06-05T14:30:00Z") in the format {@link Constant#UTC_PATTERN}
+	 * @return a formatted string like "X day(s) Y hour(s) Z minute(s) W second(s)", or {@link Constant#NONE} if parsing fails
+	 */
+	private static String formatElapsedTime(String timestamp) {
+		try {
+			LocalDateTime target = LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern(Constant.UTC_PATTERN));
+			Duration duration = Duration.between(LocalDateTime.now(), target).abs();
+			long totalSeconds = duration.getSeconds();
+			long days = totalSeconds / (24 * 3600);
+			long hours = totalSeconds % (24 * 3600) / 3600;
+			long minutes = totalSeconds % 3600 / 60;
+			long seconds = totalSeconds % 60;
+			StringBuilder rs = new StringBuilder();
+			if (days > 0) {
+				rs.append(days).append(" day(s) ");
+			}
+			if (hours > 0) {
+				rs.append(hours).append(" hour(s) ");
+			}
+			if (minutes > 0) {
+				rs.append(minutes).append(" minute(s) ");
+			}
+			rs.append(seconds).append(" second(s)");
+
+			return rs.toString().trim();
+		} catch (Exception e) {
+			LOGGER.error(Constant.FORMAT_ELAPSED_TIME_FAILED + timestamp, e);
+			return Constant.NONE;
+		}
+	}
 }

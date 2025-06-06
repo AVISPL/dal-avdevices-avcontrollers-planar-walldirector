@@ -10,7 +10,7 @@
   <properties>
     <symphonyApiVersion>RELEASE</symphonyApiVersion>
     <maven.build.timestamp>${maven.build.timestamp}</maven.build.timestamp>
-    <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssX</maven.build.timestamp.format>
   </properties>
 
   <build>

@@ -50,96 +50,11 @@ import com.avispl.symphony.dal.communicator.SocketCommunicator;
 
 /**
  * WallDirectorCommunicator is a communicator class for Wall Director devices.
- * <br>
+ * <p>
  * The {@code WallDirectorCommunicator} class is responsible for communicating
  * with the Planar WallDirector to retrieve and manage device statistics.
- * <br>
- * <h3>- Video Wall – General:</h3>
- * <li>PanelModel</li>
- * <li>Columns</li>
- * <li>Rows</li>
- * <li>BacklightControlMode</li>
- * <li>BacklightIntensity</li>
- * <li>AmbientThreshold</li>
- * <li>FrameCompensationEnabled</li>
- * <li>FrameHeight</li>
- * <li>FrameWidth</li>
- * <li>StandbyMode</li>
- * <li>SystemPowerOn/Off*</li>
- * <li>SystemReboot*</li>
  *
- * <h3>- Video Wall - PANELID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Orientation</li>
- * <li>Temperature</li>
- * <li>48VSupply</li>
- * <li>FirmwareVersion</li>
- * <li>CableLength</li>
- * <li>SignalQuality</li>
- * <li>PanelPositionColumn</li>
- * <li>PanelPositionRow</li>
- * <li>VCOutput</li>
- *
- * <h3>- Power Supplies - PSID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Module1Status</li>
- * <li>Module2Status</li>
- * <li>Module3Status</li>
- * <li>Module4Status</li>
- * <li>Temperature</li>
- * <li>FirmwareVersion</li>
- *
- * <h3>- Video Controllers - VCID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Temperature&FanStatus</li>
- * <li>FirmwareVersion</li>
- * <li>PanelInput</li>
- *
- * <h3>- Sources - VC#_IN#:</h3>
- * <li>Input(Auto,HDMI1,HDMI1)</li>
- * <li>SourcePresent</li>
- * <li>Resolution</li>
- * <li>HorizontalFrequency</li>
- * <li>PixelFrequency</li>
- * <li>ColorSpace</li>
- * <li>ColorDepth</li>
- * <li>ColorSubsampling</li>
- *
- * <h3>- Zones - ZONEID:</h3>
- * <li>ZoneInput</li>
- * <li>ZoneSource</li>
- * <li>ZoneAspect</li>
- * <li>ZoneExpectedSourceHeight</li>
- * <li>ZoneExpectedSourceWidth</li>
- * <li>ZoneOrder</li>
- *
- * <h3>- Presets:</h3>
- * <li>ActivePreset</li>
- * <li>Preset1Recall*</li>
- * <li>Preset2Recall*</li>
- * <li>Preset3Recall*</li>
- * <li>Preset4Recall*</li>
- * <li>Preset5Recall*</li>
- *
- * <h3>- NetworkStatus:</h3>
- * <li>SystemMaster</li>
- * <li>Hostname</li>
- * <li>DHCPEnabled</li>
- * <li>IPAddress</li>
- * <li>Subnet</li>
- * <li>SubnetMask</li>
- * <li>Gateway</li>
- * <li>DNSServer1</li>
- * <li>DNSServer2</li>
- * <li>MACAddress</li>
- *
- * @author Kevin / Symphony Dev Team<br>
+ * @author Kevin / Symphony Dev Team
  * @since 1.0.0
  */
 public class WallDirectorCommunicator extends SocketCommunicator implements Monitorable, Controller {
@@ -279,10 +194,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 //		  Disabled temporarily due to the device not supporting the panel/power supply.
 //		 	extendedStatistics.setDynamicStatistics(this.getDynamicStatistics(statistics));
 			this.localExtendedStatistics = extendedStatistics;
+			return Collections.singletonList(this.localExtendedStatistics);
 		} finally {
 			this.reentrantLock.unlock();
 		}
-		return Collections.singletonList(this.localExtendedStatistics);
 	}
 
 	@Override
