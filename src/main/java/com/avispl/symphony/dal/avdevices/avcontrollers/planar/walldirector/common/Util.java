@@ -3,11 +3,6 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -82,19 +77,19 @@ public class Util {
 	 * Maps the given {@link AdapterMetadataProperty} to its value using the provided properties.
 	 *
 	 * @param property the property to map
-	 * @param applicationProperties the source of property values
+	 * @param versionProperties the source of property values
 	 * @return the formatted value, or {@code Constant.NONE} if not available
 	 */
-	public static String mapToAdapterMetadataProperty(AdapterMetadataProperty property, Properties applicationProperties) {
-		String adapterBuildDate = applicationProperties.getProperty("adapter.build.date");
-		String adapterVersion = applicationProperties.getProperty("adapter.version");
-
+	public static String mapToAdapterMetadataProperty(AdapterMetadataProperty property, Properties versionProperties) {
 		switch (property) {
 			case ADAPTER_BUILD_DATE:
-				return adapterBuildDate == null ? Constant.NONE : formatDatetime(adapterBuildDate);
+				String adapterBuildDate = versionProperties.getProperty("adapter.build.date");
+				return adapterBuildDate == null ? Constant.NONE : adapterBuildDate;
 			case ADAPTER_UPTIME:
-				return adapterBuildDate == null ? Constant.NONE : formatElapsedTime(adapterBuildDate);
+				String adapterUptime = versionProperties.getProperty("adapter.uptime");
+				return adapterUptime == null ? Constant.NONE : mapToUptime(adapterUptime);
 			case ADAPTER_VERSION:
+				String adapterVersion = versionProperties.getProperty("adapter.version");
 				return adapterVersion == null ? Constant.NONE : adapterVersion;
 			default:
 				return Constant.NONE;
@@ -414,46 +409,23 @@ public class Util {
 	}
 
 	/**
-	 * Converts an ISO-8601 timestamp string (with zone information, e.g., "Z" or "+07:00")
-	 * to a formatted date-time string using the system default time zone.
-	 * The output format is defined by {@link Constant#DATE_TIME_PATTERN}.
-	 *
-	 * <p>If the input string is null or empty, {@code null} is returned.</p>
-	 *
-	 * @param timestamp the ISO-8601 formatted timestamp string (e.g., "2025-06-05T09:32:19Z" or "2025-06-05T09:32:19+07:00")
-	 * @return a formatted date-time string based on {@link Constant#DATE_TIME_PATTERN}, or {@link Constant#NONE} if input is invalid
-	 */
-	private static String formatDatetime(String timestamp) {
-		try {
-			ZonedDateTime zdt = ZonedDateTime.parse(timestamp).toInstant().atZone(ZoneId.systemDefault());
-			LocalDateTime localDateTime = zdt.toLocalDateTime();
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constant.DATE_TIME_PATTERN);
-
-			return localDateTime.format(formatter);
-		} catch (Exception e) {
-			LOGGER.error(Constant.FORMAT_DATE_TIME_FAILED + timestamp, e);
-			return Constant.NONE;
-		}
-	}
-
-	/**
-	 * Returns the elapsed time between the current system time and the given ISO-8601 date-time string.
+	 * Returns the elapsed uptime between the current system time and the given timestamp in milliseconds.
 	 * <p>
+	 * The input timestamp represents the start time in milliseconds (typically from {@link System#currentTimeMillis()}).
 	 * The returned string represents the absolute duration in the format:
 	 * "X day(s) Y hour(s) Z minute(s) W second(s)", omitting any zero-value units except seconds.
 	 *
-	 * @param timestamp the ISO-8601 timestamp string (e.g., "2024-06-05T14:30:00Z") in the format {@link Constant#UTC_PATTERN}
-	 * @return a formatted string like "X day(s) Y hour(s) Z minute(s) W second(s)", or {@link Constant#NONE} if parsing fails
+	 * @param uptime the start time in milliseconds as a string (e.g., "1717581000000")
+	 * @return a formatted duration string like "2 day(s) 3 hour(s) 15 minute(s) 42 second(s)",
+	 *         or {@link Constant#NONE} if parsing fails
 	 */
-	private static String formatElapsedTime(String timestamp) {
+	private static String mapToUptime(String uptime) {
 		try {
-			LocalDateTime target = LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern(Constant.UTC_PATTERN));
-			Duration duration = Duration.between(LocalDateTime.now(), target).abs();
-			long totalSeconds = duration.getSeconds();
-			long days = totalSeconds / (24 * 3600);
-			long hours = totalSeconds % (24 * 3600) / 3600;
-			long minutes = totalSeconds % 3600 / 60;
-			long seconds = totalSeconds % 60;
+			long uptimeSecond = (System.currentTimeMillis() - Long.parseLong(uptime)) / 1000;
+			long seconds = uptimeSecond % 60;
+			long minutes = uptimeSecond % 3600 / 60;
+			long hours = uptimeSecond % 86400 / 3600;
+			long days = uptimeSecond / 86400;
 			StringBuilder rs = new StringBuilder();
 			if (days > 0) {
 				rs.append(days).append(" day(s) ");
@@ -468,7 +440,7 @@ public class Util {
 
 			return rs.toString().trim();
 		} catch (Exception e) {
-			LOGGER.error(Constant.FORMAT_ELAPSED_TIME_FAILED + timestamp, e);
+			LOGGER.error(Constant.FORMAT_ELAPSED_TIME_FAILED + uptime, e);
 			return Constant.NONE;
 		}
 	}

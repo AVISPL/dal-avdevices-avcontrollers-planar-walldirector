@@ -3,8 +3,8 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystemNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,9 +72,13 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 */
 	private final ReentrantLock reentrantLock;
 	/**
-	 * Holds the application configuration properties loaded from the {@code application.properties} file.
+	 * Holds the application configuration properties loaded from the {@code version.properties} file.
 	 */
-	private final Properties applicationProperties;
+	private final Properties versionProperties;
+	/**
+	 * Device adapter instantiation timestamp.
+	 */
+	private final Long adapterInitializationTimestamp;
 
 	/**
 	 * Store of extended statistics object.
@@ -127,7 +131,8 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 	public WallDirectorCommunicator() {
 		this.reentrantLock = new ReentrantLock();
-		this.applicationProperties = new Properties();
+		this.versionProperties = new Properties();
+		this.adapterInitializationTimestamp = System.currentTimeMillis();
 
 		this.localExtendedStatistics = new ExtendedStatistics();
 		this.ids = new EnumMap<>(IDProperty.class);
@@ -142,7 +147,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.historicalProperties = new HashSet<>();
 		this.isRebooted = false;
 
-		this.loadProperties(this.applicationProperties);
+		this.loadProperties(this.versionProperties);
 		this.setCommandSuccessList(Collections.singletonList(Constant.CR));
 		this.setCommandErrorList(Collections.singletonList(Constant.CR));
 	}
@@ -269,16 +274,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	}
 
 	/**
-	 * Loads properties from the {@code application.properties} file into the provided {@link Properties} object.
+	 * Loads properties from the {@code version.properties} file into the provided {@link Properties} object.
 	 *
 	 * @param properties The {@link Properties} object to load the configuration into.
 	 * @throws ResourceNotReachableException if the properties file cannot be loaded.
 	 */
 	private void loadProperties(Properties properties) {
 		try {
-			properties.load(getClass().getResourceAsStream("/application.properties"));
-		} catch (Exception e) {
-			throw new FileSystemNotFoundException(Constant.UNABLE_TO_READ_PROPERTIES_FILE);
+			properties.load(getClass().getResourceAsStream("/version.properties"));
+			properties.setProperty("adapter.uptime", String.valueOf(this.adapterInitializationTimestamp));
+		} catch (IOException e) {
+			throw new ResourceNotReachableException(Constant.UNABLE_TO_READ_PROPERTIES_FILE, e);
 		}
 	}
 
@@ -573,7 +579,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		Map<String, String> properties = new HashMap<>();
 		Arrays.stream(AdapterMetadataProperty.values()).forEach(property -> {
 			String propertyName = String.format(Constant.PROPERTY_NAME_FORMAT, Constant.ADAPTER_METADATA_GROUP, property.getName());
-			properties.put(propertyName, Util.mapToAdapterMetadataProperty(property, this.applicationProperties));
+			properties.put(propertyName, Util.mapToAdapterMetadataProperty(property, this.versionProperties));
 		});
 
 		return properties;
