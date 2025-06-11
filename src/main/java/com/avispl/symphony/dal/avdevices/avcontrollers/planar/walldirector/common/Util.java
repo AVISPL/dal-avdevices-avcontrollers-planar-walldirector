@@ -3,9 +3,6 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.common;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -16,6 +13,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.products.ProductFamily;
 import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types.properties.AdapterMetadataProperty;
@@ -37,6 +36,8 @@ import com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector.types
  * @since 1.0.0
  */
 public class Util {
+	private static final Log LOGGER = LogFactory.getLog(Util.class);
+
 	private Util() {
 		// Prevent instantiation
 	}
@@ -76,19 +77,19 @@ public class Util {
 	 * Maps the given {@link AdapterMetadataProperty} to its value using the provided properties.
 	 *
 	 * @param property the property to map
-	 * @param applicationProperties the source of property values
+	 * @param versionProperties the source of property values
 	 * @return the formatted value, or {@code Constant.NONE} if not available
 	 */
-	public static String mapToAdapterMetadataProperty(AdapterMetadataProperty property, Properties applicationProperties) {
-		String adapterBuildDate = applicationProperties.getProperty("adapter.build.date");
-		String adapterVersion = applicationProperties.getProperty("adapter.version");
-
+	public static String mapToAdapterMetadataProperty(AdapterMetadataProperty property, Properties versionProperties) {
 		switch (property) {
 			case ADAPTER_BUILD_DATE:
+				String adapterBuildDate = versionProperties.getProperty("adapter.build.date");
 				return adapterBuildDate == null ? Constant.NONE : adapterBuildDate;
 			case ADAPTER_UPTIME:
-				return adapterBuildDate == null ? Constant.NONE : formatElapsedTime(adapterBuildDate);
+				String adapterUptime = versionProperties.getProperty("adapter.uptime");
+				return adapterUptime == null ? Constant.NONE : mapToUptime(adapterUptime);
 			case ADAPTER_VERSION:
+				String adapterVersion = versionProperties.getProperty("adapter.version");
 				return adapterVersion == null ? Constant.NONE : adapterVersion;
 			default:
 				return Constant.NONE;
@@ -408,32 +409,39 @@ public class Util {
 	}
 
 	/**
-	 * Returns the elapsed time between now and the given date-time string.
+	 * Returns the elapsed uptime between the current system time and the given timestamp in milliseconds.
+	 * <p>
+	 * The input timestamp represents the start time in milliseconds (typically from {@link System#currentTimeMillis()}).
+	 * The returned string represents the absolute duration in the format:
+	 * "X day(s) Y hour(s) Z minute(s) W second(s)", omitting any zero-value units except seconds.
 	 *
-	 * @param adapterBuildDate the date-time in format "yyyy-MM-dd HH:mm"
-	 * @return formatted string like "X day(s) Y hour(s) Z minute(s) W second(s)"
+	 * @param uptime the start time in milliseconds as a string (e.g., "1717581000000")
+	 * @return a formatted duration string like "2 day(s) 3 hour(s) 15 minute(s) 42 second(s)",
+	 *         or {@link Constant#NONE} if parsing fails
 	 */
-	private static String formatElapsedTime(String adapterBuildDate) {
-		LocalDateTime target = LocalDateTime.parse(adapterBuildDate, DateTimeFormatter.ofPattern(Constant.DATE_TIME_PATTERN));
-		Duration duration = Duration.between(LocalDateTime.now(), target).abs();
-		long totalSeconds = duration.getSeconds();
-		long days = totalSeconds / (24 * 3600);
-		long hours = totalSeconds % (24 * 3600) / 3600;
-		long minutes = totalSeconds % 3600 / 60;
-		long seconds = totalSeconds % 60;
-		StringBuilder rs = new StringBuilder();
-		if (days > 0) {
-			rs.append(days).append(" day(s) ");
-		}
-		if (hours > 0) {
-			rs.append(hours).append(" hour(s) ");
-		}
-		if (minutes > 0) {
-			rs.append(minutes).append(" minute(s) ");
-		}
-		rs.append(seconds).append(" second(s)");
+	private static String mapToUptime(String uptime) {
+		try {
+			long uptimeSecond = (System.currentTimeMillis() - Long.parseLong(uptime)) / 1000;
+			long seconds = uptimeSecond % 60;
+			long minutes = uptimeSecond % 3600 / 60;
+			long hours = uptimeSecond % 86400 / 3600;
+			long days = uptimeSecond / 86400;
+			StringBuilder rs = new StringBuilder();
+			if (days > 0) {
+				rs.append(days).append(" day(s) ");
+			}
+			if (hours > 0) {
+				rs.append(hours).append(" hour(s) ");
+			}
+			if (minutes > 0) {
+				rs.append(minutes).append(" minute(s) ");
+			}
+			rs.append(seconds).append(" second(s)");
 
-		return rs.toString().trim();
+			return rs.toString().trim();
+		} catch (Exception e) {
+			LOGGER.error(Constant.FORMAT_ELAPSED_TIME_FAILED + uptime, e);
+			return Constant.NONE;
+		}
 	}
-
 }

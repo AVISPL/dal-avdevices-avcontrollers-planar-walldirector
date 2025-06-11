@@ -54,9 +54,10 @@ public class Constant {
 	public static final String NONE = "None";
 	public static final String ACK = "@ACK";
 
-	public static final String UNABLE_TO_READ_PROPERTIES_FILE = "Unable to load properties file: application.properties";
+	public static final String UNABLE_TO_READ_PROPERTIES_FILE = "Unable to load properties file: version.properties";
 	public static final String DEVICE_DISCONNECTED = "No valid response received. The device may be unreachable or disconnected.";
 	public static final String COMMAND_FAILED = "Failed to send command ";
+	public static final String FORMAT_ELAPSED_TIME_FAILED = "Failed to formatElapsedTime with milliseconds: ";
 	public static final String COMMAND_UNREACHABLE = "Unreachable command: Failed to connect or execute command ";
 	public static final String COMMAND_INVALIDATED = "Invalid command: Invalid or unsupported command ";
 	public static final String RESPONSE_INVALIDATED = "Invalid response: Invalid response from command ";
