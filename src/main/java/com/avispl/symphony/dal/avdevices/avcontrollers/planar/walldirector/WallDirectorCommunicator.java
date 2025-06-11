@@ -3,8 +3,8 @@
  */
 package com.avispl.symphony.dal.avdevices.avcontrollers.planar.walldirector;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystemNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,96 +50,11 @@ import com.avispl.symphony.dal.communicator.SocketCommunicator;
 
 /**
  * WallDirectorCommunicator is a communicator class for Wall Director devices.
- * <br>
+ * <p>
  * The {@code WallDirectorCommunicator} class is responsible for communicating
  * with the Planar WallDirector to retrieve and manage device statistics.
- * <br>
- * <h3>- Video Wall – General:</h3>
- * <li>PanelModel</li>
- * <li>Columns</li>
- * <li>Rows</li>
- * <li>BacklightControlMode</li>
- * <li>BacklightIntensity</li>
- * <li>AmbientThreshold</li>
- * <li>FrameCompensationEnabled</li>
- * <li>FrameHeight</li>
- * <li>FrameWidth</li>
- * <li>StandbyMode</li>
- * <li>SystemPowerOn/Off*</li>
- * <li>SystemReboot*</li>
  *
- * <h3>- Video Wall - PANELID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Orientation</li>
- * <li>Temperature</li>
- * <li>48VSupply</li>
- * <li>FirmwareVersion</li>
- * <li>CableLength</li>
- * <li>SignalQuality</li>
- * <li>PanelPositionColumn</li>
- * <li>PanelPositionRow</li>
- * <li>VCOutput</li>
- *
- * <h3>- Power Supplies - PSID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Module1Status</li>
- * <li>Module2Status</li>
- * <li>Module3Status</li>
- * <li>Module4Status</li>
- * <li>Temperature</li>
- * <li>FirmwareVersion</li>
- *
- * <h3>- Video Controllers - VCID:</h3>
- * <li>ID</li>
- * <li>Model</li>
- * <li>SerialNumber</li>
- * <li>Temperature&FanStatus</li>
- * <li>FirmwareVersion</li>
- * <li>PanelInput</li>
- *
- * <h3>- Sources - VC#_IN#:</h3>
- * <li>Input(Auto,HDMI1,HDMI1)</li>
- * <li>SourcePresent</li>
- * <li>Resolution</li>
- * <li>HorizontalFrequency</li>
- * <li>PixelFrequency</li>
- * <li>ColorSpace</li>
- * <li>ColorDepth</li>
- * <li>ColorSubsampling</li>
- *
- * <h3>- Zones - ZONEID:</h3>
- * <li>ZoneInput</li>
- * <li>ZoneSource</li>
- * <li>ZoneAspect</li>
- * <li>ZoneExpectedSourceHeight</li>
- * <li>ZoneExpectedSourceWidth</li>
- * <li>ZoneOrder</li>
- *
- * <h3>- Presets:</h3>
- * <li>ActivePreset</li>
- * <li>Preset1Recall*</li>
- * <li>Preset2Recall*</li>
- * <li>Preset3Recall*</li>
- * <li>Preset4Recall*</li>
- * <li>Preset5Recall*</li>
- *
- * <h3>- NetworkStatus:</h3>
- * <li>SystemMaster</li>
- * <li>Hostname</li>
- * <li>DHCPEnabled</li>
- * <li>IPAddress</li>
- * <li>Subnet</li>
- * <li>SubnetMask</li>
- * <li>Gateway</li>
- * <li>DNSServer1</li>
- * <li>DNSServer2</li>
- * <li>MACAddress</li>
- *
- * @author Kevin / Symphony Dev Team<br>
+ * @author Kevin / Symphony Dev Team
  * @since 1.0.0
  */
 public class WallDirectorCommunicator extends SocketCommunicator implements Monitorable, Controller {
@@ -157,9 +72,13 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	 */
 	private final ReentrantLock reentrantLock;
 	/**
-	 * Holds the application configuration properties loaded from the {@code application.properties} file.
+	 * Holds the application configuration properties loaded from the {@code version.properties} file.
 	 */
-	private final Properties applicationProperties;
+	private final Properties versionProperties;
+	/**
+	 * Device adapter instantiation timestamp.
+	 */
+	private final Long adapterInitializationTimestamp;
 
 	/**
 	 * Store of extended statistics object.
@@ -212,7 +131,8 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 
 	public WallDirectorCommunicator() {
 		this.reentrantLock = new ReentrantLock();
-		this.applicationProperties = new Properties();
+		this.versionProperties = new Properties();
+		this.adapterInitializationTimestamp = System.currentTimeMillis();
 
 		this.localExtendedStatistics = new ExtendedStatistics();
 		this.ids = new EnumMap<>(IDProperty.class);
@@ -227,7 +147,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		this.historicalProperties = new HashSet<>();
 		this.isRebooted = false;
 
-		this.loadProperties(this.applicationProperties);
+		this.loadProperties(this.versionProperties);
 		this.setCommandSuccessList(Collections.singletonList(Constant.CR));
 		this.setCommandErrorList(Collections.singletonList(Constant.CR));
 	}
@@ -279,10 +199,10 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 //		  Disabled temporarily due to the device not supporting the panel/power supply.
 //		 	extendedStatistics.setDynamicStatistics(this.getDynamicStatistics(statistics));
 			this.localExtendedStatistics = extendedStatistics;
+			return Collections.singletonList(this.localExtendedStatistics);
 		} finally {
 			this.reentrantLock.unlock();
 		}
-		return Collections.singletonList(this.localExtendedStatistics);
 	}
 
 	@Override
@@ -354,16 +274,17 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 	}
 
 	/**
-	 * Loads properties from the {@code application.properties} file into the provided {@link Properties} object.
+	 * Loads properties from the {@code version.properties} file into the provided {@link Properties} object.
 	 *
 	 * @param properties The {@link Properties} object to load the configuration into.
 	 * @throws ResourceNotReachableException if the properties file cannot be loaded.
 	 */
 	private void loadProperties(Properties properties) {
 		try {
-			properties.load(getClass().getResourceAsStream("/application.properties"));
-		} catch (Exception e) {
-			throw new FileSystemNotFoundException(Constant.UNABLE_TO_READ_PROPERTIES_FILE);
+			properties.load(getClass().getResourceAsStream("/version.properties"));
+			properties.setProperty("adapter.uptime", String.valueOf(this.adapterInitializationTimestamp));
+		} catch (IOException e) {
+			throw new ResourceNotReachableException(Constant.UNABLE_TO_READ_PROPERTIES_FILE, e);
 		}
 	}
 
@@ -658,7 +579,7 @@ public class WallDirectorCommunicator extends SocketCommunicator implements Moni
 		Map<String, String> properties = new HashMap<>();
 		Arrays.stream(AdapterMetadataProperty.values()).forEach(property -> {
 			String propertyName = String.format(Constant.PROPERTY_NAME_FORMAT, Constant.ADAPTER_METADATA_GROUP, property.getName());
-			properties.put(propertyName, Util.mapToAdapterMetadataProperty(property, this.applicationProperties));
+			properties.put(propertyName, Util.mapToAdapterMetadataProperty(property, this.versionProperties));
 		});
 
 		return properties;
